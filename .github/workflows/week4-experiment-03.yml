@@ -77,7 +77,9 @@ jobs:
             df -h "$GITHUB_WORKSPACE"
             echo 'POSTGRES_IMAGE=postgres:16'
             docker image inspect postgres:16 --format 'IMAGE_ID={{.Id}} REPO_DIGESTS={{json .RepoDigests}}' || echo 'POSTGRES_IMAGE_DIGEST=unavailable'
+            psql --version
             psql -X -v ON_ERROR_STOP=1 -c 'SELECT version();'
+            psql -X -v ON_ERROR_STOP=1 -c 'SHOW transaction_isolation;'
           } 2>&1 | tee "$RUN_ARTIFACT_DIR/runner-rig.log"
       - name: Run bounded synthetic currency race
         shell: bash

@@ -23,10 +23,12 @@ assert_eq() {
 
 echo 'EXPERIMENT=03 CURRENCY_BACKFILL_INSERT_RACE'
 echo 'PURPOSE=deterministically probe an old-schema insert after UPDATE snapshot begins'
+echo 'SCOPE=per-statement autocommit; ADD COLUMN commits before UPDATE; no rename; not the transaction-wrapped mode'
 echo 'DATA=100000 deterministic synthetic invoices; no external data'
-echo 'SYNC=synthetic statement-level trigger sleeps 3s before UPDATE scans rows; not a performance measurement'
+echo 'SYNC=synthetic statement-level trigger sleeps 5s before UPDATE scans rows; not a performance measurement'
 echo 'SAFETY_GUARD=environment check only; not a security boundary'
 psql_ci -c 'SELECT version();'
+echo "TRANSACTION_ISOLATION=$(psql_ci -Atc 'SHOW transaction_isolation;')"
 
 seed_sql="$RUN_ARTIFACT_DIR/seed.sql"
 trigger_sql="$RUN_ARTIFACT_DIR/pause-trigger.sql"
@@ -37,7 +39,8 @@ trigger_log="$RUN_ARTIFACT_DIR/pause-trigger.log"
 add_log="$RUN_ARTIFACT_DIR/add-currency.log"
 control_log="$RUN_ARTIFACT_DIR/pre-update-control.log"
 update_log="$RUN_ARTIFACT_DIR/backfill-update.log"
-observer_log="$RUN_ARTIFACT_DIR/update-observer.log"
+observer_before_log="$RUN_ARTIFACT_DIR/update-observer-before-insert.log"
+observer_after_log="$RUN_ARTIFACT_DIR/update-observer-after-insert.log"
 writer_log="$RUN_ARTIFACT_DIR/concurrent-writer.log"
 
 cat >"$seed_sql" <<'SQL'
@@ -60,7 +63,7 @@ DROP FUNCTION IF EXISTS pause_currency_backfill() CASCADE;
 CREATE FUNCTION pause_currency_backfill() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   -- Synthetic synchronization only; use a real bounded workload for any timing or lock conclusion.
-  PERFORM pg_sleep(3);
+  PERFORM pg_sleep(5);
   RETURN NULL;
 END
 $$;
@@ -78,8 +81,7 @@ SELECT clock_timestamp(), pid, state, wait_event_type, wait_event, query
 FROM pg_stat_activity
 WHERE application_name = 'week4-currency-race-migration'
   AND state = 'active'
-  AND wait_event = 'PgSleep'
-  AND query LIKE 'UPDATE invoices SET currency%';
+  AND wait_event = 'PgSleep';
 SQL
 
 psql_ci -f "$seed_sql" >"$seed_log" 2>&1
@@ -94,7 +96,7 @@ echo "UPDATE_PROCESS_STARTED time=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) pid=$update_
 
 observed=0
 for _ in {1..100}; do
-  if psql_ci -f "$observer_sql" >"$observer_log" 2>&1 && grep -q 'PgSleep' "$observer_log"; then
+  if psql_ci -f "$observer_sql" >"$observer_before_log" 2>&1 && grep -q 'PgSleep' "$observer_before_log"; then
     observed=1
     break
   fi
@@ -102,14 +104,15 @@ for _ in {1..100}; do
 done
 if [[ "$observed" != '1' ]]; then
   echo 'ASSERTION_FAILED update_pause_observed'
-  cat "$observer_log" || true
+  cat "$observer_before_log" || true
   wait "$update_pid" || true
   exit 1
 fi
 echo "UPDATE_ACTIVE_AND_PAUSED time=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)"
-cat "$observer_log"
+cat "$observer_before_log"
 
-if psql_ci -c "INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 20.00);" >"$writer_log" 2>&1; then
+echo "CONCURRENT_INSERT_START time=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) id=200002 country=DE"
+if PGAPPNAME=week4-currency-race-writer timeout 8s psql -X -v ON_ERROR_STOP=1 -c "SET lock_timeout = '2s'; SET statement_timeout = '5s'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 20.00);" >"$writer_log" 2>&1; then
   echo "CONCURRENT_INSERT_COMMITTED time=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ) id=200002 country=DE"
 else
   status=$?
@@ -119,6 +122,15 @@ else
   exit 1
 fi
 
+if ! psql_ci -f "$observer_sql" >"$observer_after_log" 2>&1 || ! grep -q 'PgSleep' "$observer_after_log"; then
+  echo 'ASSERTION_FAILED update_still_paused_after_insert'
+  cat "$observer_after_log" || true
+  wait "$update_pid" || true
+  exit 1
+fi
+echo "UPDATE_STILL_PAUSED_AFTER_INSERT time=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)"
+cat "$observer_after_log"
+
 if wait "$update_pid"; then
   :
 else
@@ -127,6 +139,7 @@ else
   echo "ASSERTION_FAILED backfill_update exit=$status"
   exit 1
 fi
+echo "UPDATE_PROCESS_FINISHED time=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)"
 cat "$seed_log" "$add_log" "$control_log" "$trigger_log" "$update_log" "$writer_log"
 
 pre_update_currency=$(psql_ci -Atc 'SELECT currency FROM invoices WHERE id = 200001;')
@@ -134,9 +147,26 @@ concurrent_currency=$(psql_ci -Atc 'SELECT currency FROM invoices WHERE id = 200
 mismatches=$(psql_ci -Atc "SELECT count(*) FROM invoices WHERE currency IS DISTINCT FROM CASE country WHEN 'DE' THEN 'EUR' WHEN 'ID' THEN 'IDR' ELSE 'USD' END;")
 rows=$(psql_ci -Atc 'SELECT count(*) FROM invoices;')
 updated_rows=$(awk '/^UPDATE / {print $2}' "$update_log")
+timing_count=$(awk '$1 == "Time:" && $3 == "ms" {count++} END {print count + 0}' "$update_log")
+update_ms=$(awk '$1 == "Time:" && $3 == "ms" {print $2}' "$update_log")
 assert_eq "$pre_update_currency" 'EUR' 'pre_update_insert_backfilled_positive_control'
-assert_eq "$concurrent_currency" 'USD' 'concurrent_insert_default_currency_defect_reproduced'
-assert_eq "$mismatches" '1' 'currency_mismatch_count'
 assert_eq "$rows" '100002' 'all_rows_accounted_for'
-assert_eq "$updated_rows" '100001' 'backfill_statement_row_count'
-echo 'HARNESS_RESULT=PASS; EXPECTED_DEFECT_REPRODUCED; MIGRATION_DECISION=REJECT'
+assert_eq "$timing_count" '1' 'backfill_timing_record_count'
+if [[ ! "$updated_rows" =~ ^[0-9]+$ || ! "$mismatches" =~ ^[0-9]+$ || ! "$update_ms" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  echo "ASSERTION_FAILED unparsable_observation update_rows=<$updated_rows> mismatches=<$mismatches> update_ms=<$update_ms>"
+  exit 1
+fi
+awk -v elapsed="$update_ms" 'BEGIN { if (elapsed + 0 < 5000) exit 1 }' || {
+  echo "ASSERTION_FAILED pause_duration_ms expected_at_least=<5000> actual=<$update_ms>"
+  exit 1
+}
+echo "ASSERTION_PASS pause_duration_ms value=<$update_ms>"
+echo "OBSERVED_RESULT pre_update_currency=<$pre_update_currency> concurrent_currency=<$concurrent_currency> mismatches=<$mismatches> updated_rows=<$updated_rows> rows=<$rows>"
+if [[ "$concurrent_currency" == 'USD' && "$mismatches" == '1' && "$updated_rows" == '100001' ]]; then
+  echo 'EXPERIMENT_FINDING=HYPOTHESIS_SUPPORTED'
+elif [[ "$concurrent_currency" == 'EUR' && "$mismatches" == '0' && "$updated_rows" == '100002' ]]; then
+  echo 'EXPERIMENT_FINDING=HYPOTHESIS_REFUTED'
+else
+  echo 'EXPERIMENT_FINDING=INCONCLUSIVE; inspect observed values and raw logs'
+fi
+echo 'HARNESS_ASSERTIONS=PASS; OBSERVATIONS_RECORDED=YES'
