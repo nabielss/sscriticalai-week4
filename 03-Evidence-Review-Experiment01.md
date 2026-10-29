@@ -1,6 +1,6 @@
 # Review Evidence — Experiment 01
 
-Status: three CI runs reviewed; no database work run locally. This review is AI-authored from the challenge, committed harness, three CI artifacts, and Nabiel's separately preserved interpretations and source reviews.
+Status: six CI run artifacts reviewed; no database work run locally. This audit is AI-authored from the challenge, committed harness, raw CI evidence, and Nabiel–AI collaborative review/interpretation syntheses.
 
 ## Run card
 
@@ -51,7 +51,7 @@ Nabiel's post-run interpretation and source-level review are preserved in the tr
 | Commit | `c0e75af5e842348f98aac833c2de25e430d559bb` |
 | Scenario / actor | `both`; triggered by `nabielss` |
 | SCRIPT_AUTHOR / EXECUTED_ON | Codex (AI assistant) / GitHub-hosted Linux X64 (`GitHub Actions 1000000014`) |
-| Reviewer / manual check | Raw log says `REVIEWED_BY=Nabiel` and `MANUAL_CHECK=POST_RUN_REVIEW_PENDING`. Nabiel's supplied review, full Actions transcript, and post-run interpretation are preserved in [the Run 03 transcript](evidence/experiment-01/40851077057/Nabiel-run-review-transcript.txt). This documents a self-review and user-run review of raw results, not an independent second reviewer. |
+| Reviewer / manual check | Raw log says `REVIEWED_BY=Nabiel` and `MANUAL_CHECK=POST_RUN_REVIEW_PENDING`. The supplied review and post-run interpretation are preserved in [the Run 03 transcript](evidence/experiment-01/40851077057/Nabiel-run-review-transcript.txt); Nabiel later clarified these were produced through dialogue with AI. This records collaborative synthesis, not an independent second reviewer. |
 | Script/workflow identity | Rig-log SHA-256 values match the repository files at commit `c0e75af`: script `b1442f97202172949b18efaa7581e0c2e9ad55e9791c82082466698832bfccce`; workflow `846a5cd8f1fe879a745b22a92d212457414dcb99441eaed43aaece02f554b5e5`. |
 | Data / database | Three deterministic synthetic invoices; PostgreSQL 16.15; service image `postgres:16`, pulled digest `sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c` |
 | Runner facts | 2 CPUs; `MemTotal=8,122,984 kB`, `MemAvailable=7,137,744 kB`; `/dev/root` 72 GB total, 13 GB free at measurement. These are startup snapshots, not DB capacity guarantees. |
@@ -66,7 +66,7 @@ Nabiel's post-run interpretation and source-level review are preserved in the tr
 
 **Provenance cross-check:** I compared the SHA-256 values in the rig artifact with the checked-out files at the logged commit and computed the downloaded ZIP SHA-256; all match Nabiel's supplied report. The extracted ZIP contains three files and no older-run files. The uploaded archive digest match establishes byte identity with the supplied download, not independent GitHub attestation. The repo tree at `c0e75af` has no tracked `artifacts/` entries; the clean Run 03 artifact is consistent with that fact. The workflow's `mkdir -p artifacts` does not clear existing files if a workspace is reused.
 
-**Contribution boundary:** Actions records `TRIGGERED_BY=nabielss`; I record this as a user-triggered CI run. `SCRIPT_AUTHOR` remains AI. The pasted review and result interpretation are Nabiel-authored user contributions; the raw artifact's pending marker remains unchanged.
+**Contribution boundary:** Actions records `TRIGGERED_BY=nabielss`; I record this as a user-triggered CI run. `SCRIPT_AUTHOR` remains AI. Nabiel clarifies that the supplied review and result interpretation are collaborative Nabiel–AI syntheses; the raw artifact's pending marker remains unchanged.
 
 **Still NOT RUN:** old-app `INSERT (amount)` after rename; concurrent traffic/lock measurement; scale/backfill/WAL/replica impact; partial failure/resume; and production migration-runner behavior. The old-app INSERT assertion has now been added to the harness but awaits a user-triggered Run 04. The harness wraps both `up()` and `down()` in transactions, while the real runner behavior is unknown. Run 03 establishes correctness defects on a three-row PostgreSQL 16.15 fixture, not production timing or lock impact.
 
@@ -128,7 +128,7 @@ Monthly Actions allowance/spend policy remains `UNKNOWN`; this workflow's first 
 
 **Goal:** distinguish transaction-scoped DDL lock retention from the blocking window of individual operations; do not test a fix yet.
 
-1. Run 03 closes the positive-control/provenance gate for the current revision: hashes match the committed script/workflow, and Nabiel supplied a source review and post-run interpretation. His transcript flags the missing old-app INSERT case; add that bounded correctness assertion before the next dispatch, then record the revised identity and review. A reviewer input alone does not substitute for the review record.
+1. Run 03 closes the positive-control/provenance gate for that revision: hashes match the committed script/workflow, and Nabiel supplied a source review and post-run interpretation as a collaborative synthesis. The review flags the missing old-app INSERT case; add that bounded correctness assertion before the next dispatch, then record the revised identity and review. A reviewer input alone does not substitute for a review record.
 2. Use isolated GitHub-hosted Actions Postgres with synthetic rows and the production-like column widths/indexes only where their parameters are known. Record seed, row size, DB size, WAL size, and full migration mode. Run on fresh fixtures for each mode/size.
 3. Test two modes because real runner semantics are unknown: **(A)** one transaction matching current harness; **(B)** each statement committed separately. Replace this with the actual runner behavior if its implementation/config becomes available. Never claim CI mode equals production runner without that evidence.
 4. Start a bounded writer that records attempt time, completion/error, and latency. Run `up()` concurrently. A separate observer polls `pg_stat_activity` and `pg_locks` for wait event, query, granted state, and wait duration. Put a short `lock_timeout` on the writer; preserve both successful and timed-out inserts. Verify row counts/currency after the run.
@@ -151,7 +151,7 @@ PostgreSQL 16 documentation supports the lock and measurement approach: lock-wai
 
 ## Run 04 and Experiment 02 — user-triggered CI evidence, 2026-10-29
 
-The original uploaded ZIPs and extracted raw files are retained under `evidence/experiment-01/40861368934/` and `evidence/experiment-02/40861765376/`. The ZIP SHA-256 values match the digests reported by the corresponding Actions uploads. Nabiel's interpretation is preserved verbatim in [his submitted interpretation](evidence/Nabiel-Interpretation-Run04-Experiment02.txt); this audit below is AI-authored and separate from that submission.
+The original uploaded ZIPs and extracted raw files are retained under `evidence/experiment-01/40861368934/` and `evidence/experiment-02/40861765376/`. The ZIP SHA-256 values match the digests reported by the corresponding Actions uploads. Nabiel–AI's interpretation synthesis is preserved verbatim in [the submitted interpretation](evidence/Nabiel-Interpretation-Run04-Experiment02.txt); this audit below is AI-authored and separate from that submission.
 
 ### Run cards and observed facts
 
@@ -194,9 +194,9 @@ PostgreSQL 16 documentation: an `UPDATE` under Read Committed finds target rows 
 
 ### Review material submitted for draft commit `5c1a9a6` — attribution correction
 
-**Provenance correction:** an earlier version of this report incorrectly attributed the code review and pre-run predictions to Nabiel personally. The later supplied note says that material came from an AI review. Correct status: AI-generated/AI-assisted review text was transmitted by Nabiel; authorship and any personal edits are unconfirmed. The review identifies script SHA-256 `15eb28b66ed6c86e0b85e23d54f5dc8b9fb2a027c961ecfd0c28e62ca88a533e` and workflow SHA-256 `d510486b51e289bcad668aa6ffd26b6af375c9373a62b2473a1db51f3d564995`, did not report an execution or file edit, and recommended **NO-GO** because observer matching likely failed on the multiline query. `REVIEWED_BY=Nabiel` in the later Actions run is a workflow input, not proof that a particular review text was personally authored. Do not count that AI review or its predictions as Nabiel's independent contribution.
+**Provenance correction:** an earlier version of this report incorrectly labeled the code review and pre-run predictions as solely Nabiel-authored. Nabiel clarifies that the review/prediction and subsequent interpretation were produced through discussion and dialectic with AI and should be treated as a collaborative synthesis. Credit them as **Nabiel–AI co-produced reasoning**, not solo-authored work and not unreviewed AI output. The review identifies script SHA-256 `15eb28b66ed6c86e0b85e23d54f5dc8b9fb2a027c961ecfd0c28e62ca88a533e` and workflow SHA-256 `d510486b51e289bcad668aa6ffd26b6af375c9373a62b2473a1db51f3d564995`, reports no execution or file edit at that review stage, and recommended **NO-GO** because observer matching likely failed on the multiline query. `REVIEWED_BY=Nabiel` is a workflow input; the later clarification supplies the missing authorship context.
 
-**Pre-run prediction carried by that AI review text (not credited to Nabiel):** if the observer defect is fixed and the experiment is valid, `UPDATE` should report `100001` rows and take at least 3000 ms; id `200001` should end as EUR; id `200002` should remain USD; mismatch count should be 1; total rows should be 100002. The review text states the currency hypothesis is falsified if id `200002` is EUR or UPDATE reports 100002 rows. The revised harness uses a five-second synthetic pause and a `>=5000 ms` instrumentation check. It records actual values before classifying the hypothesis.
+**Collaborative pre-run prediction:** if the observer defect is fixed and the experiment is valid, `UPDATE` should report `100001` rows and take at least 3000 ms; id `200001` should end as EUR; id `200002` should remain USD; mismatch count should be 1; total rows should be 100002. The currency hypothesis is falsified if id `200002` is EUR or UPDATE reports 100002 rows. The revised harness uses a five-second synthetic pause and a `>=5000 ms` instrumentation check. It records actual values before classifying the hypothesis.
 
 **Finding dispositions in the new, still-unrun revision:**
 
@@ -212,12 +212,12 @@ Do not increase scale until CI footprint, account cost/quota, timeout, and disk 
 
 ## Experiment 03 — controlled insert during backfill snapshot, 2026-10-29
 
-**Provenance:** [Actions run 40866063966](https://github.com/nabielss/sscriticalai-week4/actions/runs/40866063966), attempt 1, commit `65a109ccf19138b6b05f496aed45ee1c7e071272`. Script SHA-256 `053f8bb3e849fff40a34561f8d704be4b87d8c392280192debf712b72261cbc9`; workflow SHA-256 `7604e46fab184377379bcde3edd2240723b05f6c1d62b2c900e171636e2b3572`. I recomputed both from `git show` at that commit. The supplied ZIP is preserved byte-for-byte at `evidence/experiment-03/40866063966/original-artifact.zip`; SHA-256 `FE5C932555F13C0D8068E151BF933B3B1B77D7AD6679E297CB13AC350DFA044C` matches the Actions upload digest. Its 14 files match the Actions upload count. Extracted files are in the sibling `received-extract/` directory. The accompanying text is preserved at `evidence/Run03-40866063966-pasted-log-and-interpretation.txt`; it includes the pasted Actions log and interpretation. Its prose authorship/AI assistance is not confirmed, so it is recorded as user-supplied, not as an independently authored Nabiel interpretation.
+**Provenance:** [Actions run 40866063966](https://github.com/nabielss/sscriticalai-week4/actions/runs/40866063966), attempt 1, commit `65a109ccf19138b6b05f496aed45ee1c7e071272`. Script SHA-256 `053f8bb3e849fff40a34561f8d704be4b87d8c392280192debf712b72261cbc9`; workflow SHA-256 `7604e46fab184377379bcde3edd2240723b05f6c1d62b2c900e171636e2b3572`. I recomputed both from `git show` at that commit. The supplied ZIP is preserved byte-for-byte at `evidence/experiment-03/40866063966/original-artifact.zip`; SHA-256 `FE5C932555F13C0D8068E151BF933B3B1B77D7AD6679E297CB13AC350DFA044C` matches the Actions upload digest. Its 14 files match the Actions upload count. Extracted files are in the sibling `received-extract/` directory. The accompanying text is preserved at `evidence/Run03-40866063966-pasted-log-and-interpretation.txt`; it includes the pasted Actions log and interpretation. Nabiel later clarified that the review and interpretation were produced through dialogue with AI, so this is recorded as a Nabiel–AI synthesis rather than solo-authored work.
 
 | Field | Value |
 |---|---|
 | SCRIPT_AUTHOR / TRIGGERED_BY / EXECUTED_ON | Codex / `nabielss` / GitHub-hosted Linux X64 (`1000000017`) |
-| REVIEWED_BY / MANUAL_CHECK | Raw rig says `Nabiel` / `POST_RUN_REVIEW_PENDING`. A later supplied analysis reports manual artifact inspection, but its authorship is unconfirmed. |
+| REVIEWED_BY / MANUAL_CHECK | Raw rig says `Nabiel` / `POST_RUN_REVIEW_PENDING`. Nabiel later clarified the artifact review and interpretation were a Nabiel–AI collaborative synthesis; the original raw marker remains unchanged. |
 | Data / database | 100,000 deterministic synthetic rows; PostgreSQL client/server 16.15; `read committed`; synthetic `DE/ID/US` distribution |
 | Rig snapshot | 2 CPUs; MemTotal 8,122,984 kB; MemAvailable 7,165,400 kB; `/dev/root` 72 GB, 13 GB free. Actions account quota `UNKNOWN`. |
 | Scope | Per-statement autocommit: `ADD COLUMN` committed before `UPDATE`; no rename; one pre-update DE control and one concurrent old-schema DE insert. A synthetic statement trigger pauses the update for 5 seconds; this is synchronization, not a performance model. |
@@ -231,7 +231,7 @@ Do not increase scale until CI footprint, account cost/quota, timeout, and disk 
 
 ### Interpretation audit and limits
 
-The supplied interpretation correctly narrows the result to one controlled 100k-row autocommit fixture on PostgreSQL 16.15, separates the Experiment 02 four-row currency inference from this direct run, and does not claim production frequency or scale. It also correctly distinguishes script-written labels such as `EXPERIMENT_FINDING=HYPOTHESIS_SUPPORTED` from independent evidence. Its authorship is not established, so the interpretation is retained as supplied analysis rather than credited as Nabiel-authored personal reasoning.
+The collaborative interpretation correctly narrows the result to one controlled 100k-row autocommit fixture on PostgreSQL 16.15, separates the Experiment 02 four-row currency inference from this direct run, and does not claim production frequency or scale. It also correctly distinguishes script-written labels such as `EXPERIMENT_FINDING=HYPOTHESIS_SUPPORTED` from the underlying observations. Per Nabiel's clarification, this is credited as a Nabiel–AI synthesis, not as solo-authored work.
 
 The result also sharpens the personal baseline: the earlier wording expected old inserts **after the UPDATE finishes** to receive USD. This run demonstrates that the suspected window starts earlier: a row committed after the UPDATE snapshot begins can be missed while the UPDATE is still active. Preserve the original baseline; record this as a later correction, not a rewritten baseline.
 
@@ -239,4 +239,4 @@ The result also sharpens the personal baseline: the earlier wording expected old
 
 ### Next gate
 
-Do not repeat the same race run: it answered the narrow mechanism question. First, Nabiel must write a short independent interpretation in his own words (or confirm which parts of the supplied text he personally authored). Then complete the trainer's seven-part answer with observed/derived/unknown labels and a Plan B. Further CI work should be a separate, explicitly bounded gate for failure/resume or a measured lock/traffic question; 120M-row scale is unavailable on the observed standard runner and must stay `NOT RUN` unless a suitably sized, cost-approved runner is established.
+Do not repeat the same race run: it answered the narrow mechanism question. Nabiel has clarified that the interpretation is a synthesis from his dialogue with AI. Next, complete the trainer's seven-part answer with observed/derived/unknown labels and a Plan B. Further CI work should be a separate, explicitly bounded gate for failure/resume or a measured lock/traffic question; 120M-row scale is unavailable on the observed standard runner and must stay `NOT RUN` unless a suitably sized, cost-approved runner is established.
