@@ -1,0 +1,103 @@
+name: Week 4 experiment 03 (currency backfill race)
+
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_by:
+        description: Reviewer who inspected this script and workflow before the run
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  currency-race:
+    name: Reproduce currency default during backfill (synthetic only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: week4
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d week4"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: ci
+      PGPASSWORD: synthetic-only
+      PGDATABASE: week4
+      REVIEWED_BY: ${{ inputs.reviewed_by }}
+      RUN_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Record runner and database rig
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUN_ARTIFACT_DIR"
+          {
+            reviewed_by=$(printf '%s' "$REVIEWED_BY" | tr '\r\n' '  ')
+            if ! grep -q '[^[:space:]]' <<<"$reviewed_by"; then
+              echo 'REVIEWED_BY is required' >&2
+              exit 1
+            fi
+            echo "COMMIT_SHA=$GITHUB_SHA"
+            echo "RUN_ID=$GITHUB_RUN_ID"
+            echo "RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT"
+            echo "RUN_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "DATE_TIME_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo 'WORKFLOW_TIMEOUT_MINUTES=10'
+            echo 'ACTIONS_ACCOUNT_QUOTA=UNKNOWN; billing access is not granted to this workflow'
+            echo 'SCRIPT_AUTHOR=Codex (AI assistant)'
+            echo "TRIGGERED_BY=$GITHUB_ACTOR"
+            echo "EXECUTED_ON=$RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+            printf 'REVIEWED_BY=%s\n' "$reviewed_by"
+            echo 'MANUAL_CHECK=POST_RUN_REVIEW_PENDING'
+            echo 'DATA=100000 deterministic synthetic invoices; no external data'
+            echo 'SEED=generate_series(1,100000); deterministic DE/ID/US pattern and amount'
+            echo 'COMMAND=bash scripts/experiment-03-currency-race.sh'
+            echo "SCRIPT_SHA256=$(sha256sum scripts/experiment-03-currency-race.sh | cut -d' ' -f1)"
+            echo "WORKFLOW_SHA256=$(sha256sum .github/workflows/week4-experiment-03.yml | cut -d' ' -f1)"
+            echo "CPU_COUNT=$(nproc)"
+            echo 'MEMORY:'
+            grep -E 'MemTotal|MemAvailable' /proc/meminfo
+            echo 'DISK:'
+            df -h "$GITHUB_WORKSPACE"
+            echo 'POSTGRES_IMAGE=postgres:16'
+            docker image inspect postgres:16 --format 'IMAGE_ID={{.Id}} REPO_DIGESTS={{json .RepoDigests}}' || echo 'POSTGRES_IMAGE_DIGEST=unavailable'
+            psql -X -v ON_ERROR_STOP=1 -c 'SELECT version();'
+          } 2>&1 | tee "$RUN_ARTIFACT_DIR/runner-rig.log"
+      - name: Run bounded synthetic currency race
+        shell: bash
+        run: |
+          set +e
+          bash scripts/experiment-03-currency-race.sh 2>&1 | tee "$RUN_ARTIFACT_DIR/experiment-03.log"
+          pipeline_status=("${PIPESTATUS[@]}")
+          script_status=${pipeline_status[0]}
+          tee_status=${pipeline_status[1]}
+          printf 'SCRIPT_EXIT_STATUS=%s\n' "$script_status" | tee -a "$RUN_ARTIFACT_DIR/experiment-03.log"
+          if [[ "$tee_status" -ne 0 ]]; then
+            echo 'Failed to persist the complete script output' >&2
+            exit 74
+          fi
+          exit "$script_status"
+      - name: Upload raw logs even when a step fails
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: week4-experiment-03-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/${{ github.run_id }}-${{ github.run_attempt }}/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,6 +1,6 @@
 # Week 4 — diagnosis dan desain eksperimen pertama
 
-Status: tiga CI correctness run sudah selesai (Run 01 `both`, Run 02 `rollback`, Run 03 `both` dengan file hashes dan positive control index); lock/traffic/scale tetap `NOT RUN`. Ini belum submission final.
+Status: empat CI correctness run telah selesai (Run 01–04); Experiment 02 lock calibration juga selesai, dan Nabiel telah menulis interpretasinya. Experiment 03 sekarang disiapkan untuk menguji currency pada insert selama backfill, tetapi masih `NOT RUN` dan menunggu review script serta dispatch oleh Nabiel. Traffic 800/s, scale, replica lag, partial failure/recovery, dan kesiapan produksi belum dibuktikan. Ini belum submission final.
 
 ## Provenance
 
@@ -10,8 +10,8 @@ Status: tiga CI correctness run sudah selesai (Run 01 `both`, Run 02 `rollback`,
 - `DOCUMENTED`: dokumentasi PostgreSQL resmi yang ditautkan pada bagian sumber.
 - `DERIVED`: hitungan/inferensi yang ditandai demikian.
 - `HYPOTHESIS`/`UNKNOWN`: klaim yang butuh uji atau konfirmasi owner.
-- `OBSERVED`: dua rehearsal correctness pada tiga row sintetis; raw run cards dan limitations ada di [review evidence](03-Evidence-Review-Experiment01.md).
-- `NOT RUN`: seeding skala, traffic, lock contention, WAL/replica, partial failure, resume/recovery, atau pengukuran waktu/scale.
+- `OBSERVED`: Run 01–04 mereproduksi kegagalan query/insert lama setelah rename serta kehilangan currency dan constraint tertinggal saat `down()` pada fixture kecil. Experiment 02 mengamati lock wait/timeout dalam mode transaksi dan insert lama yang lolos sebelum rename dalam simulasi autocommit 100k; raw run cards, interpretasi Nabiel, dan limitations ada di [review evidence](03-Evidence-Review-Experiment01.md).
+- `NOT RUN`: Experiment 03 currency race (script siap, menunggu review/dispatch), seeding skala lebih besar, traffic 800/s, replica lag, partial failure, resume/recovery, atau pengukuran p99.
 
 ## Fakta challenge dan batasnya
 
@@ -72,7 +72,7 @@ P99 spike dan `wait_event_type='Lock'` adalah falsifiable metric yang baik untuk
 - CI job boleh selesai dengan harness sukses bila kedua defect terdeteksi tepat dan positive controls lulus. Ringkasan job harus menyatakan **migration ditolak**; green job hanya berarti harness berhasil mereproduksi defect, bukan approval migration. Marker yang salah/missing harus membuat job gagal.
 - Simpan raw stdout/stderr dan exit code, bahkan bila job gagal; upload artifact pada `if: always()`.
 - Run card wajib isi: `SCRIPT_AUTHOR`, `TRIGGERED_BY`, `EXECUTED_ON`, `REVIEWED_BY`, `MANUAL_CHECK`, commit SHA, URL/job/attempt, tanggal & zona waktu, Postgres image/version, CPU/RAM/disk hasil ukur, seed/row count, command, artifact path, exit status, limitations. `MANUAL_CHECK` tetap `POST_RUN_REVIEW_PENDING` sampai Nabiel menulis cek dan interpretasinya setelah membaca artifact.
-- **Status sekarang:** Run 03 (`40851077057`, commit `c0e75af`) menjalankan `both`; rig-file hashes cocok dengan commit, old query gagal setelah rename, index count 1 sebelum dan 0 sesudah `down()`, currency hilang, dan constraint tertinggal. Arsip bersih berisi tiga file. Semua itu tetap bukti fixture 3 baris/PG 16.15. Assertion old-app INSERT sudah ditambahkan, tetapi belum dijalankan. Transaksi runner aktual, concurrency, lock, scale/backfill, WAL, replica lag, dan recovery tetap `NOT RUN`.
+- **Status sekarang:** Run 04 (`40861368934`, commit `11761d3`) mengonfirmasi query dan insert aplikasi lama gagal setelah rename serta currency hilang dan constraint tertinggal setelah `down()`; fixture 3 baris/PG 16.15. Experiment 02 (`40861765376`, commit sama) adalah kalibrasi 100k dengan dua simulasi transaksi, satu writer terbatas, dan positive control lock. Nabiel menulis interpretasi sendiri. Raw ZIP, extract, dan audit tersimpan di [review evidence](03-Evidence-Review-Experiment01.md). Experiment 03 belum dijalankan. Transaksi runner production, 800/s, scale production, WAL/replica impact, dan recovery tetap `NOT RUN`.
 
 ## GitHub Actions kapasitas dan biaya: fakta dokumentasi vs pengukuran
 
@@ -83,4 +83,4 @@ P99 spike dan `wait_event_type='Lock'` adalah falsifiable metric yang baik untuk
 
 ## Gate berikutnya
 
-**Gate correctness awal sudah dilewati dengan batasan di atas. Gate berikutnya:** review script/workflow yang sudah menambah tes old-app `INSERT`, lalu picu `both` untuk Run 04. Setelah itu, review dan picu Experiment 02: kalibrasi fixture 100k dengan positive control lock dan writer terbatas pada dua mode transaksi. Experiment 02 berhenti setelah 100k; scale-up menunggu review ukuran database/WAL dan disk yang terukur. Nabiel membaca raw output dan menulis interpretasinya sendiri. Belum ada fix kandidat yang dijalankan.
+**Gate correctness dasar dan lock calibration sudah dilewati pada batasan di atas. Gate berikutnya:** Nabiel membaca dan meninjau [script Experiment 03](scripts/experiment-03-currency-race.sh) serta [workflow Experiment 03](.github/workflows/week4-experiment-03.yml). Jika skenario dan assertion sesuai, Nabiel sendiri memicu workflow, membaca raw output, lalu menulis interpretasi. Eksperimen memberi jeda sintetis pada statement `UPDATE`, mengoordinasikan insert lama saat statement aktif, dan membandingkan positive control yang disisipkan sebelum backfill dengan baris concurrent. Ia hanya menguji correctness snapshot/default pada PostgreSQL 16.15/fixture sintetis; bukan uji performa. Scale-up menunggu kapasitas disk/kuota CI yang terukur. Belum ada kandidat migration fix yang dijalankan, recovery test, atau submission final.
