@@ -1,0 +1,91 @@
+name: Week 4 experiment 01 (synthetic)
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Select which required synthetic scenario to run first
+        required: true
+        type: choice
+        options:
+          - compatibility
+          - rollback
+          - both
+        default: both
+      reviewed_by:
+        description: Reviewer who inspected this script and workflow before the run
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rehearsal:
+    name: Detect known migration defects (does not approve migration)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: week4
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d week4"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: ci
+      PGPASSWORD: synthetic-only
+      PGDATABASE: week4
+      EXPERIMENT_SCENARIO: ${{ inputs.scenario }}
+      REVIEWED_BY: ${{ inputs.reviewed_by }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record runner and database rig
+        run: |
+          mkdir -p artifacts
+          {
+            echo "COMMIT_SHA=$GITHUB_SHA"
+            echo "RUN_ID=$GITHUB_RUN_ID"
+            echo "RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT"
+            echo "RUN_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "RUNNER_OS=$RUNNER_OS"
+            echo "RUNNER_ARCH=$RUNNER_ARCH"
+            echo "RUNNER_NAME=$RUNNER_NAME"
+            echo "SCRIPT_AUTHOR=Codex (AI assistant)"
+            echo "TRIGGERED_BY=$GITHUB_ACTOR"
+            echo "RUN_BY=GitHub-hosted Actions, triggered by $GITHUB_ACTOR"
+            echo "EXECUTED_ON=$RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
+            echo "REVIEWED_BY=$REVIEWED_BY"
+            echo 'MANUAL_CHECK=POST_RUN_REVIEW_PENDING'
+            echo "SELECTED_SCENARIO=$EXPERIMENT_SCENARIO"
+            echo "DATE_TIME_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo 'DATA=3 deterministic synthetic invoices; no external data'
+            echo 'SEED=not applicable; fixed fixture rows'
+            echo 'COMMAND=bash scripts/experiment-01.sh'
+            echo "CPU_COUNT=$(nproc)"
+            echo 'MEMORY:'
+            grep -E 'MemTotal|MemAvailable' /proc/meminfo
+            echo 'DISK:'
+            df -h "$GITHUB_WORKSPACE"
+            echo 'POSTGRES_IMAGE=postgres:16 (major pinned; patch reported below)'
+            psql -X -v ON_ERROR_STOP=1 -c 'SELECT version();'
+          } 2>&1 | tee artifacts/runner-rig.log
+      - name: Run selected synthetic experiment
+        run: bash scripts/experiment-01.sh
+      - name: Upload raw logs even when a step fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: week4-experiment-01-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
