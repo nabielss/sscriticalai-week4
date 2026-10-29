@@ -68,7 +68,7 @@ Nabiel's post-run interpretation and source-level review are preserved in the tr
 
 **Contribution boundary:** Actions records `TRIGGERED_BY=nabielss`; I record this as a user-triggered CI run. `SCRIPT_AUTHOR` remains AI. The pasted review and result interpretation are Nabiel-authored user contributions; the raw artifact's pending marker remains unchanged.
 
-**Still NOT RUN:** old-app `INSERT (amount)` after rename; concurrent traffic/lock measurement; scale/backfill/WAL/replica impact; partial failure/resume; and production migration-runner behavior. The harness wraps both `up()` and `down()` in transactions, while the real runner behavior is unknown. Run 03 establishes correctness defects on a three-row PostgreSQL 16.15 fixture, not production timing or lock impact.
+**Still NOT RUN:** old-app `INSERT (amount)` after rename; concurrent traffic/lock measurement; scale/backfill/WAL/replica impact; partial failure/resume; and production migration-runner behavior. The old-app INSERT assertion has now been added to the harness but awaits a user-triggered Run 04. The harness wraps both `up()` and `down()` in transactions, while the real runner behavior is unknown. Run 03 establishes correctness defects on a three-row PostgreSQL 16.15 fixture, not production timing or lock impact.
 
 ## Observations and inference
 
@@ -137,4 +137,14 @@ Monthly Actions allowance/spend policy remains `UNKNOWN`; this workflow's first 
 
 **Acceptance / stop:** positive control writer inserts before migration; at least one concurrent writer and observer are active during the operation; all intended probe attempts accounted for (no unexplained missing rows); metrics identify which statement blocks which operation; raw logs/artifact upload even on failure. Stop scale-up before free disk falls below the predeclared reserve or Actions timeout. Results describe the CI rig only; they do not prove production safety or zero downtime.
 
-No candidate fix has been implemented or tested. Before Experiment 02, add the old-app `INSERT (amount)` assertion because it is a direct gap identified in Nabiel's review. Then prepare the bounded CI lock experiment; Nabiel chooses and triggers the CI run. Preserve the `down()` findings; do not run rollback as a production recovery recommendation.
+No candidate fix has been implemented or tested. Preserve the `down()` findings; do not run rollback as a production recovery recommendation.
+
+## Experiment 02 implementation — calibration only, not yet run
+
+- Run 04 extends `compatibility` with an old-schema INSERT positive control before migration and an expected missing-column error after rename. It is in `scripts/experiment-01.sh`; it remains `NOT RUN` until Nabiel reviews and triggers the existing workflow with `both`.
+- New `week4-experiment-02.yml` and `scripts/experiment-02-lock.sh` set up one 100,000-row deterministic synthetic fixture. The job tests the original SQL in (A) one transaction and (B) per-statement commits, clearly labeled simulations because the real runner is unavailable.
+- A deliberately held `ACCESS EXCLUSIVE` lock is the observer/writer positive control. Each migration mode then runs with one bounded legacy writer (25 attempts, 250 ms `lock_timeout`, 100 ms sleep between attempts) and a `pg_stat_activity`/`pg_locks` sampler. These settings bound the probe; they are not business SLOs and do not represent 800 inserts/second.
+- The run records per-statement timings, writer outcomes, database size, WAL LSN delta, CPU/memory/disk snapshots, runner/image/database versions, hashes, and raw logs. Artifacts use a run-specific directory and `if: always()` upload. Scale-up, replica lag, and recovery are deliberately excluded from this calibration run.
+- Acceptance is limited to instrumentation positive control, complete accounting of writer attempts, and successful/failed migration state with raw evidence. An unobserved lock at 100k is not evidence of no lock at production scale. Nabiel must inspect the exact revision and trigger CI; no workflow has been dispatched for this draft.
+
+PostgreSQL 16 documentation supports the lock and measurement approach: lock-wait sessions can be joined through `pg_locks` and `pg_stat_activity`; `pg_wal_lsn_diff` reports LSN byte difference. A constant column default avoids a full-table rewrite on PostgreSQL 11+, while ordinary `CREATE INDEX` blocks writes during the build; `CREATE INDEX CONCURRENTLY` has separate transaction restrictions. Sources: [monitoring stats](https://www.postgresql.org/docs/16/monitoring-stats.html), [pg_locks](https://www.postgresql.org/docs/16/view-pg-locks.html), [WAL functions](https://www.postgresql.org/docs/16/functions-admin.html), [adding a column](https://www.postgresql.org/docs/16/ddl-alter.html), [CREATE INDEX](https://www.postgresql.org/docs/16/sql-createindex.html).

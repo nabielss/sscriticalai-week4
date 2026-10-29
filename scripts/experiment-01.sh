@@ -56,10 +56,13 @@ SQL
 }
 
 run_compatibility() {
-  echo 'SCENARIO_A=old_application_query'
+  echo 'SCENARIO_A=old_application_read_and_write'
   reset_fixture
   amount=$(psql_ci -Atc 'SELECT amount FROM invoices WHERE id = 1;')
   assert_eq "$amount" '10.00' 'old_query_before_rename'
+  psql_ci -c "INSERT INTO invoices (id, country, amount) VALUES (4, 'DE', 40.00);"
+  old_insert_amount=$(psql_ci -Atc 'SELECT amount FROM invoices WHERE id = 4;')
+  assert_eq "$old_insert_amount" '40.00' 'old_insert_before_rename'
   run_up
   new_value=$(psql_ci -Atc "SELECT total_amount::text || ':' || currency FROM invoices WHERE id = 1;")
   assert_eq "$new_value" '10.00:EUR' 'new_query_after_up'
@@ -75,6 +78,18 @@ run_compatibility() {
     exit 1
   fi
   echo 'ASSERTION_PASS old_query_after_rename=missing_column_error'
+
+  if psql_ci -c "INSERT INTO invoices (id, country, amount) VALUES (5, 'DE', 50.00);" >artifacts/old-insert-after-rename.log 2>&1; then
+    cat artifacts/old-insert-after-rename.log
+    echo 'ASSERTION_FAILED old_insert_after_rename unexpectedly succeeded'
+    exit 1
+  fi
+  cat artifacts/old-insert-after-rename.log
+  if ! grep -Fq 'column "amount" of relation "invoices" does not exist' artifacts/old-insert-after-rename.log; then
+    echo 'ASSERTION_FAILED old_insert_after_rename failed for an unexpected reason'
+    exit 1
+  fi
+  echo 'ASSERTION_PASS old_insert_after_rename=missing_column_error'
 }
 
 run_rollback() {
