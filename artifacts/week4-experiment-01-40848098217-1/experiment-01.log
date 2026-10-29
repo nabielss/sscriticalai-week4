@@ -1,0 +1,56 @@
+EXPERIMENT=01 OLD_APP_COMPATIBILITY_AND_DOWN_CURRENCY
+DATA=synthetic; no production or staging connection
+MIGRATION=verbatim SQL from ChallengeWeek4.md, wrapped in one transaction (runner behavior unknown)
+SELECTED_SCENARIO=both
+                                                       version                                                        
+----------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+(1 row)
+
+SCENARIO_A=old_application_query
+NOTICE:  table "invoices" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+INSERT 0 3
+ASSERTION_PASS old_query_before_rename value=<10.00>
+BEGIN
+ALTER TABLE
+UPDATE 3
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+COMMIT
+ASSERTION_PASS new_query_after_up value=<10.00:EUR>
+ERROR:  column "amount" does not exist
+LINE 1: SELECT amount FROM invoices WHERE id = 1;
+               ^
+EXPECTED_FINDING old_query_after_rename=FAIL column amount does not exist
+RELEASE_GATE rolling_compatibility=FAIL (harness reproduced the defect)
+SCENARIO_B=down_currency_information
+DROP TABLE
+CREATE TABLE
+INSERT 0 3
+BEGIN
+ALTER TABLE
+UPDATE 3
+CREATE INDEX
+ALTER TABLE
+ALTER TABLE
+COMMIT
+ASSERTION_PASS currency_before_down_positive_control value=<1:EUR,2:IDR,3:USD>
+UPDATE 1
+ASSERTION_PASS explicit_currency_before_down value=<EUR>
+SNAPSHOT_BEFORE_DOWN currencies=1:EUR,2:IDR,3:USD; id3_currency_override=EUR; amount_sum=60.00
+BEGIN
+ALTER TABLE
+ALTER TABLE
+COMMIT
+ASSERTION_PASS currency_column_after_down value=<0>
+ASSERTION_PASS amount_column_after_down value=<1>
+ASSERTION_PASS amount_sum_after_down value=<60.00>
+ASSERTION_PASS amount_nonneg_constraint_persists_after_down value=<1>
+EXPECTED_FINDING currency_after_down=ABSENT; explicit currency value is not preserved by down()
+EXPECTED_FINDING amount_nonneg_constraint_after_down=PRESENT; schema is not identical to pre-up state
+RELEASE_GATE down_preserves_currency=FAIL (harness reproduced the defect)
+EXPERIMENT_HARNESS=PASS; MIGRATION_DECISION=REJECT
+SCRIPT_EXIT_STATUS=0
