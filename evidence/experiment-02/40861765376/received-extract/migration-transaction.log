@@ -1,0 +1,85 @@
+Timing is on.
+BEGIN
+Time: 0.174 ms
+STEP_START add_currency
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:21.971629+00
+(1 row)
+
+Time: 0.338 ms
+ALTER TABLE
+Time: 0.853 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:21.972672+00
+(1 row)
+
+Time: 0.121 ms
+STEP_END add_currency
+STEP_START update_currency
+       clock_timestamp        
+------------------------------
+ 2026-10-29 10:59:21.97282+00
+(1 row)
+
+Time: 0.133 ms
+UPDATE 100001
+Time: 529.903 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.503031+00
+(1 row)
+
+Time: 0.192 ms
+STEP_END update_currency
+STEP_START create_index
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.503171+00
+(1 row)
+
+Time: 0.097 ms
+CREATE INDEX
+Time: 236.617 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.740012+00
+(1 row)
+
+Time: 0.160 ms
+STEP_END create_index
+STEP_START rename_amount
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.740156+00
+(1 row)
+
+Time: 0.096 ms
+ALTER TABLE
+Time: 0.185 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.740483+00
+(1 row)
+
+Time: 0.106 ms
+STEP_END rename_amount
+STEP_START add_check
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.740608+00
+(1 row)
+
+Time: 0.101 ms
+ALTER TABLE
+Time: 8.778 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.749541+00
+(1 row)
+
+Time: 0.126 ms
+STEP_END add_check
+COMMIT
+Time: 247.380 ms

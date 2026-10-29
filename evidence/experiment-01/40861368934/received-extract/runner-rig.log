@@ -1,0 +1,33 @@
+COMMIT_SHA=11761d3b04b54d7b8fd19105547da2154c130dd8
+RUN_ID=40861368934
+RUN_ATTEMPT=1
+RUN_URL=https://github.com/nabielss/sscriticalai-week4/actions/runs/40861368934
+RUNNER_OS=Linux
+RUNNER_ARCH=X64
+RUNNER_NAME=GitHub Actions 1000000015
+SCRIPT_AUTHOR=Codex (AI assistant)
+TRIGGERED_BY=nabielss
+RUN_BY=GitHub-hosted Actions, triggered by nabielss
+EXECUTED_ON=GitHub Actions 1000000015 (Linux/X64)
+REVIEWED_BY=Nabiel
+MANUAL_CHECK=POST_RUN_REVIEW_PENDING
+SELECTED_SCENARIO=both
+DATE_TIME_UTC=2026-10-29T10:55:56Z
+DATA=3 deterministic synthetic invoices; no external data
+SEED=not applicable; fixed fixture rows
+COMMAND=bash scripts/experiment-01.sh
+SCRIPT_SHA256=bb62f5dbe6a9ec45ff78b65782bf8bd283cbff0f51e7210bd474a5f9a87a106a
+WORKFLOW_SHA256=846a5cd8f1fe879a745b22a92d212457414dcb99441eaed43aaece02f554b5e5
+CPU_COUNT=2
+MEMORY:
+MemTotal:        8122984 kB
+MemAvailable:    7153972 kB
+DISK:
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root        72G   60G   13G  83% /
+POSTGRES_IMAGE=postgres:16 (major pinned; patch reported below)
+                                                       version                                                        
+----------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+(1 row)
+

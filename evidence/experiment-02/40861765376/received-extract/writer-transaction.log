@@ -1,0 +1,123 @@
+WRITER_RESULT mode=transaction attempt=1 time=2026-10-29T10:59:21.860509051Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=transaction attempt=2 time=2026-10-29T10:59:22.263775725Z result=LOCK_TIMEOUT psql_exit=1
+SET
+ERROR:  canceling statement due to lock timeout
+LINE 1: SET lock_timeout = '250ms'; INSERT INTO invoices (id, countr...
+                                                ^
+WRITER_RESULT mode=transaction attempt=3 time=2026-10-29T10:59:22.655781025Z result=LOCK_TIMEOUT psql_exit=1
+SET
+ERROR:  canceling statement due to lock timeout
+LINE 1: SET lock_timeout = '250ms'; INSERT INTO invoices (id, countr...
+                                                ^
+WRITER_RESULT mode=transaction attempt=4 time=2026-10-29T10:59:23.009170893Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=5 time=2026-10-29T10:59:23.146230426Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=6 time=2026-10-29T10:59:23.297503165Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=7 time=2026-10-29T10:59:23.434174513Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=8 time=2026-10-29T10:59:23.570998015Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=9 time=2026-10-29T10:59:23.707720255Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=10 time=2026-10-29T10:59:23.846259486Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=11 time=2026-10-29T10:59:23.983923607Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=12 time=2026-10-29T10:59:24.121700167Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=13 time=2026-10-29T10:59:24.258091327Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=14 time=2026-10-29T10:59:24.394444260Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=15 time=2026-10-29T10:59:24.530920458Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=16 time=2026-10-29T10:59:24.666828720Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=17 time=2026-10-29T10:59:24.802834143Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=18 time=2026-10-29T10:59:24.941181315Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=19 time=2026-10-29T10:59:25.076849454Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=20 time=2026-10-29T10:59:25.213454972Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=21 time=2026-10-29T10:59:25.349966339Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=22 time=2026-10-29T10:59:25.485942743Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=23 time=2026-10-29T10:59:25.623044516Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=24 time=2026-10-29T10:59:25.759795123Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=25 time=2026-10-29T10:59:25.896811176Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^

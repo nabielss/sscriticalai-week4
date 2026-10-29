@@ -1,0 +1,115 @@
+WRITER_RESULT mode=autocommit attempt=1 time=2026-10-29T10:59:32.409629641Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=2 time=2026-10-29T10:59:32.750059727Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=3 time=2026-10-29T10:59:33.058759019Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=4 time=2026-10-29T10:59:33.303459943Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=5 time=2026-10-29T10:59:33.523484621Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=6 time=2026-10-29T10:59:33.660946621Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=7 time=2026-10-29T10:59:33.798305285Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=8 time=2026-10-29T10:59:33.934672620Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=9 time=2026-10-29T10:59:34.071384949Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=10 time=2026-10-29T10:59:34.207731091Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=11 time=2026-10-29T10:59:34.345054077Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=12 time=2026-10-29T10:59:34.483058545Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=13 time=2026-10-29T10:59:34.620457779Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=14 time=2026-10-29T10:59:34.756496229Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=15 time=2026-10-29T10:59:34.902268878Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=16 time=2026-10-29T10:59:35.039271318Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=17 time=2026-10-29T10:59:35.175967986Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=18 time=2026-10-29T10:59:35.313704865Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=19 time=2026-10-29T10:59:35.451108626Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=20 time=2026-10-29T10:59:35.588521175Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=21 time=2026-10-29T10:59:35.725937885Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=22 time=2026-10-29T10:59:35.863078909Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=23 time=2026-10-29T10:59:35.999952690Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=24 time=2026-10-29T10:59:36.136726846Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=25 time=2026-10-29T10:59:36.274391340Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^

@@ -1,0 +1,13 @@
+BEGIN
+LOCK TABLE
+         ?column?         
+--------------------------
+ CONTROL_LOCK_ACQUIRED|80
+(1 row)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+COMMIT

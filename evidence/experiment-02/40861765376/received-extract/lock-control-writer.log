@@ -1,0 +1,4 @@
+SET
+ERROR:  canceling statement due to lock timeout
+LINE 1: SET lock_timeout = '250ms'; INSERT INTO invoices (id, countr...
+                                                ^

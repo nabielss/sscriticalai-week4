@@ -1,0 +1,7 @@
+Output format is unaligned.
+Pager usage is off.
+OBSERVER_READY
+LOCK_WAIT|app=week4-lock-control-writer|pid=83|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+LOCK_WAIT|app=week4-lock-control-writer|pid=83|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+LOCK_WAIT|app=week4-lock-control-writer|pid=83|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+

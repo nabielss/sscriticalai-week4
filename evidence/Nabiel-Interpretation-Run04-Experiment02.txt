@@ -1,0 +1,121 @@
+  Semua label di bawah berlaku untuk fixture 100k baris, PG 16.15, satu writer berurutan, dan satu
+  kali run per mode.
+
+  1) Perbedaan mode transaksi dan autocommit
+
+  Dibuktikan (RAN):
+
+  - Mode transaksi: ADD COLUMN mengambil ACCESS EXCLUSIVE, dan lock itu dipegang sampai COMMIT (±1,03
+  s). Dua INSERT kena LOCK_TIMEOUT, satu menunggu lalu gagal setelah commit, dan observer mencatat 8
+  sampel dengan pemblokir pid migration.
+  - Mode autocommit: 0 timeout dan 0 sampel lock. Tiga INSERT lolos selama UPDATE, sesuai harapan
+  karena UPDATE hanya mengambil row lock.
+  - Penyebab blokir: pembungkus transaksi memperpanjang lock ADD COLUMN dari 0,85 ms menjadi hampir
+  seluruh migration. Pada skala ini, bukan CREATE INDEX atau CHECK yang tercatat sebagai pemblokir.
+  - Rename merusak INSERT lama di kedua mode: 22 gagal di mode transaksi dan 20 di autocommit. Tidak
+  ada jalan keluar lewat pemilihan mode.
+
+  Belum dibuktikan:
+
+  - Autocommit lebih aman. Tidak ada bukti untuk itu. CREATE INDEX biasa mengambil SHARE lock yang
+  memblokir INSERT selama build. Percobaan 5 di autocommit selesai tepat setelah index selesai
+  (33,5235 vs 33,519), jadi mungkin menunggu ±100 ms. Observer 0 sampel bisa berarti tidak menunggu
+  atau terlewat. Tanpa durasi per percobaan, kedua kemungkinan itu tak terbedakan.
+  - Perilaku di skala besar. Lama CREATE INDEX, CHECK (scan penuh di bawah ACCESS EXCLUSIVE), dan
+  UPDATE belum diuji di 120M baris. Satu ukuran tidak memberi dasar menyebut hubungan linear.
+  - Selisih antar mode. Jumlah sampel kecil (25 percobaan per mode, satu run). Mode transaksi
+  dijalankan lebih dulu daripada autocommit, jadi cache bisa mempengaruhi. Lama migration hampir sama
+  (1,07 s vs 1,05 s).
+  - Mode yang dipakai runner production. Tidak diketahui.
+
+  2) Prediksi baseline
+
+  ┌───────────────────────┬───────────────────────────────────────────────────────────────────────┐
+  │ Prediksi              │ Status                                                                │
+  │ (Baseline-User.md)    │                                                                       │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ SELECT amount gagal   │ Terkonfirmasi (RAN, Run 01–04). INSERT dengan amount juga gagal (Run  │
+  │ tepat setelah rename  │ 04, Exp 02).                                                          │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ Rename merusak pod    │ Terkonfirmasi sebagian: mekanismenya benar. Jendela 5 menit,          │
+  │ lama selama rolling   │ dashboard replica, dan pola retry belum diuji.                        │
+  │ deploy                │                                                                       │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ ADD COLUMN cepat      │ Terkonfirmasi untuk PG 16 di 100k: 0,85 ms. Untuk PG production       │
+  │ (metadata-only, PG ≥  │ (belum diketahui) dan atribusi "1,8 s staging" belum diuji.           │
+  │ 11)                   │                                                                       │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ down() membuang data  │ Terkonfirmasi (Run 03, 04).                                           │
+  │ currency              │                                                                       │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ down(): "constraint   │ Terkonfirmasi sebagian. Constraint amount_nonneg tetap tertinggal.    │
+  │ dan index tidak       │ Index justru ikut hilang karena DROP COLUMN menghapusnya. Kalimat itu │
+  │ dibersihkan           │ benar secara harfiah, tetapi akibat untuk index tidak seperti yang    │
+  │ eksplisit"            │ tersirat.                                                             │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ wait_event_type='Lock │ Terkonfirmasi sebagian: hanya di mode transaksi, dan penyebabnya ADD  │
+  │ ' muncul saat up()    │ COLUMN yang dipegang sampai commit. Baseline menduga baris 5 dan 7.   │
+  │ berjalan              │ Mekanisme itu belum diuji terpisah.                                   │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ p99 melonjak jadi     │ Belum diuji. p99 tidak diukur, hanya satu ukuran, dan bukan 800 TPS.  │
+  │ detik atau menit,     │                                                                       │
+  │ naik linear dengan    │                                                                       │
+  │ jumlah baris          │                                                                       │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ UPDATE besar          │ Arah terkonfirmasi di 100k: ukuran DB +93% dan WAL 29,3 MB            │
+  │ menghasilkan bloat    │ (transaksi), +75% dan 27,7 MB (autocommit). Skala, dan replica lag,   │
+  │ dan WAL               │ belum diuji.                                                          │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ Baris INSERT pod lama │ Belum diuji langsung, tapi ada indikasi kuat (lihat bagian 3).        │
+  │ dapat default USD     │                                                                       │
+  ├───────────────────────┼───────────────────────────────────────────────────────────────────────┤
+  │ Pemetaan ELSE 'USD'   │ Belum diuji. Fixture hanya memakai DE, ID, US.                        │
+  │ salah untuk negara    │                                                                       │
+  │ eurozone lain         │                                                                       │
+  └───────────────────────┴───────────────────────────────────────────────────────────────────────┘
+
+  Syarat "prediksi salah jika": tidak terpenuhi, jadi prediksi tidak terbantah. Syaratnya dua
+  sekaligus: p99 <100 ms tanpa Lock wait dan SELECT amount tetap jalan. Bagian kedua gagal di semua
+  run (query gagal), jadi syarat gabungan tidak tercapai. Di autocommit, bagian "tanpa Lock wait"
+  memang terpenuhi (0 sampel), tetapi itu tidak cukup.
+
+  Terbantah: tidak ada. Satu catatan: mekanisme lock di mode transaksi berbeda dari yang diperkirakan
+  baseline.
+
+  3) Dugaan currency pada INSERT yang terjadi saat UPDATE
+
+  Dugaan: di mode autocommit, empat baris writer (id 200002–200005, semuanya country='DE') punya
+  currency='USD', bukan EUR.
+
+  Dasar (RAN dari hitungan, bukan dari nilai yang diamati):
+
+  - UPDATE 100001 pada autocommit, padahal baris sesudah migration adalah 100005. UPDATE hanya
+  menyentuh seed 100.000 ditambah satu baris writer yang lahir sebelum ADD COLUMN (percobaan 1). Empat
+  baris sisanya tidak tersentuh.
+  - Di Postgres READ COMMITTED, UPDATE memakai snapshot yang diambil saat statement mulai. Baris yang
+  di-commit sesudahnya tidak terlihat olehnya.
+  - INSERT lama tidak menyebut currency, jadi kolom itu terisi default 'USD' dari ADD COLUMN.
+  - Di mode transaksi, UPDATE 100001 sama dengan jumlah baris akhir (100001), dan lock tabel mencegah
+  celah itu. Tidak ada baris tertinggal di sana.
+
+  Status: TIDAK TERVERIFIKASI. Yang teramati hanya hitungan baris. Nilai currency tidak diperiksa, dan
+  databasenya sudah dibuang bersama container.
+
+  Pemeriksaan yang akan memastikan:
+
+  1. Setelah tiap mode, sebelum database hilang, jalankan dan catat:
+
+     SELECT id, country, currency FROM invoices WHERE id > 200000 ORDER BY id;
+     SELECT count(*) FROM invoices
+     WHERE currency <> CASE country WHEN 'DE' THEN 'EUR' WHEN 'ID' THEN 'IDR' ELSE 'USD' END;
+
+     Prediksi saya: autocommit menghasilkan 4 baris DE|USD (id 200002–200005) dan hitungan mismatch 4.
+  Mode transaksi menghasilkan 0.
+
+  2. Bandingkan dengan jumlah baris yang disentuh UPDATE (UPDATE n) untuk memastikan baris mana yang
+  lolos dari snapshot.
+  3. Repro deterministik, agar tidak bergantung pada waktu: sesi 1 menjalankan ADD COLUMN, lalu BEGIN;
+  UPDATE … ; SELECT pg_sleep(2); COMMIT;. Sesi 2 meng-INSERT satu baris DE lama di tengah jeda itu.
+  Setelah itu baca currency baris tersebut. Hasil USD memastikan mekanismenya.
+  4. Dugaan ini salah jika keempat baris itu bernilai EUR. Dugaan itu juga tidak teruji kalau UPDATE
+   ternyata menyentuh baris tersebut (hitungan UPDATE n tidak cocok).

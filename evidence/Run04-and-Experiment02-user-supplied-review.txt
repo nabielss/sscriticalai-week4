@@ -1,0 +1,2085 @@
+Perihal:
+Langkah Anda: tinjau [script correctness](E:/1-learning/SS_weekly-training-critical-thinking/bielsandbox/week4-challenge4/scripts/experiment-01.sh) dan [workflow Experiment 01](E:/1-learning/SS_weekly-training-critical-thinking/bielsandbox/week4-challenge4/.github/workflows/week4-experiment-01.yml)
+
+Hasil pembacaan:
+Review Experiment 01: script dan workflow
+
+  Review ini hanya membaca kode di commit 11761d3b04b54d7b8fd19105547da2154c130dd8. Tidak ada yang
+  dijalankan. Tidak ada temuan yang menghalangi Run 04.
+
+  Hash isi ter-commit yang akan dijalankan (git show HEAD:… | sha256sum):
+
+  - SCRIPT_SHA256 = bb62f5dbe6a9ec45ff78b65782bf8bd283cbff0f51e7210bd474a5f9a87a106a
+  - WORKFLOW_SHA256 = 846a5cd8f1fe879a745b22a92d212457414dcb99441eaed43aaece02f554b5e5
+
+  Kedua file berakhiran LF dan tidak mengandung CR.
+
+  Script scripts/experiment-01.sh
+
+  ┌─────────────────────────────┬──────────────────────────────────────────────────────────────────┐
+  │ Aspek                       │ Hasil                                                            │
+  ├─────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+  │ SQL migration (baris 47–54) │ Urutan dan isinya sama dengan ChallengeWeek4.md baris 8–13.      │
+  │                             │ Perbedaannya hanya BEGIN/COMMIT dan CASE yang ditulis satu       │
+  │                             │ baris. Pembungkus transaksi sudah dilabeli "runner behavior      │
+  │                             │ unknown" di baris 22.                                            │
+  ├─────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+  │ down() (baris 113–116)      │ DROP COLUMN currency dan RENAME balik, juga dalam satu           │
+  │                             │ transaksi. Sama dengan challenge baris 17–18.                    │
+  ├─────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+  │ Assertion                   │ assert_eq (baris 11–18) keluar dengan exit 1 saat nilai tidak    │
+  │                             │ cocok. Assertion lama masih ada, dan dua yang baru ditambah di   │
+  │                             │ antara baris 63–64 dan 82–92: INSERT lama harus berhasil sebelum │
+  │                             │ rename dan harus gagal sesudahnya. Pesan error dicek persis      │
+  │                             │ (column "amount" of relation "invoices" does not exist),         │
+  │                             │ sehingga kegagalan karena alasan lain terdeteksi.                │
+  ├─────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+  │ Guard koneksi (baris 4–7)   │ Menolak jalan kalau bukan GITHUB_ACTIONS=true dan                │
+  │                             │ 127.0.0.1:5432/week4 dengan user ci dan password synthetic-only. │
+  │                             │ Ini hanya cek environment variable, jadi bukan batas keamanan.   │
+  ├─────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+  │ Propagasi exit code         │ set -euo pipefail di baris 2, dan psql dipanggil dengan          │
+  │                             │ ON_ERROR_STOP=1. Pengecualian yang disengaja: dua query "harus   │
+  │                             │ gagal" memakai if psql …, jadi kegagalannya ditangani lewat      │
+  │                             │ grep.                                                            │
+  ├─────────────────────────────┼──────────────────────────────────────────────────────────────────┤
+  │ Provenance                  │ Script mencetak EXPERIMENT, DATA, MIGRATION, SELECTED_SCENARIO,  │
+  │                             │ dan SELECT version().                                            │
+  └─────────────────────────────┴──────────────────────────────────────────────────────────────────┘
+
+  Temuan script:
+
+  - Info (baris 63–64): baris id=4 yang di-INSERT sebelum up() tidak dicek currency-nya sesudah
+  backfill (seharusnya EUR). Ini tidak mengubah bukti utama.
+  - Rendah (baris 137): ASSERTION_BATCH_COMPLETE bisa terbaca sebagai persetujuan migration. Usulan
+  nama: HARNESS_ASSERTIONS_EXECUTED_NOT_A_MIGRATION_VERDICT.
+  - Rendah (baris 8): mkdir -p artifacts tanpa pembersihan. Pada runner baru ini tidak berdampak.
+
+  Workflow .github/workflows/week4-experiment-01.yml
+
+  ┌──────────────────────────┬─────────────────────────────────────────────────────────────────────┐
+  │ Aspek                    │ Hasil                                                               │
+  ├──────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Pemicu dan izin          │ workflow_dispatch saja, permissions: contents: read,                │
+  │                          │ timeout-minutes: 10.                                                │
+  ├──────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ reviewed_by              │ Masuk lewat env, dibersihkan CR/LF, dan ditolak kalau kosong (baris │
+  │                          │ 57–61). Tidak ada risiko injection.                                 │
+  ├──────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Provenance (baris 62–83) │ Mencatat commit SHA, run id, URL, pemicu, runner, tanggal UTC,      │
+  │                          │ SCRIPT_SHA256, WORKFLOW_SHA256, CPU, memori, disk, dan SELECT       │
+  │                          │ version().                                                          │
+  ├──────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Exit code (baris 93–102) │ Kode keluar script dan tee dipisahkan lewat PIPESTATUS. Kegagalan   │
+  │                          │ tee menghasilkan exit 74. Script yang gagal tetap gagal, dan        │
+  │                          │ SCRIPT_EXIT_STATUS ditulis ke log.                                  │
+  ├──────────────────────────┼─────────────────────────────────────────────────────────────────────┤
+  │ Upload (baris 104–110)   │ if: always(), dengan retensi 14 hari. Action dipin ke SHA.          │
+  └──────────────────────────┴─────────────────────────────────────────────────────────────────────┘
+
+  Temuan workflow:
+
+  - Rendah (baris 55): mkdir -p artifacts tanpa rm -rf artifacts (catatan a).
+  - Rendah (baris 51): checkout tanpa persist-credentials: false (catatan d). Izin sudah dibatasi ke
+  contents: read.
+  - Rendah (baris 30): postgres:16 hanya dipin ke versi mayor, tanpa digest. Versi minor tetap
+  tercatat lewat SELECT version().
+
+  Status catatan terbuka dari review sebelumnya
+
+  ┌───────────────────────────────────────────────┬──────────────────┐
+  │ Catatan                                       │ Status           │
+  ├───────────────────────────────────────────────┼──────────────────┤
+  │ (a) rm -rf artifacts                          │ Belum diterapkan │
+  ├───────────────────────────────────────────────┼──────────────────┤
+  │ (b) assertion INSERT lama dengan kolom amount │ Sudah diterapkan │
+  ├───────────────────────────────────────────────┼──────────────────┤
+  │ (c) nama ASSERTION_BATCH_COMPLETE             │ Belum diterapkan │
+  ├───────────────────────────────────────────────┼──────────────────┤
+  │ (d) persist-credentials: false                │ Belum diterapkan │
+  └───────────────────────────────────────────────┴──────────────────┘
+
+  Kesimpulan
+
+  Script dan workflow layak untuk Run 04. Tiga catatan kecil di atas boleh ditunda. Hasil run nanti
+  hanya membuktikan perilaku pada fixture 3 baris dan tidak boleh dibaca sebagai bukti untuk 120M
+  baris.
+
+  Tidak ada file yang saya ubah. Saya tidak memicu workflow.
+
+Hasil run GitHub actions:
+2026-10-29T10:55:38.5561512Z Current runner version: '2.338.0'
+2026-10-29T10:55:38.5618787Z ##[group]Runner Image Provisioner
+2026-10-29T10:55:38.5620221Z Hosted Compute Agent
+2026-10-29T10:55:38.5621234Z Version: 20261021.618
+2026-10-29T10:55:38.5622291Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-29T10:55:38.5623505Z Build Date: 2026-10-21T00:45:21Z
+2026-10-29T10:55:38.5624728Z Worker ID: {15421d53-f231-46bd-a767-acee20c28057}
+2026-10-29T10:55:38.5625953Z Region: eastus
+2026-10-29T10:55:38.5627347Z Cloud: Azure
+2026-10-29T10:55:38.5628381Z ##[endgroup]
+2026-10-29T10:55:38.5631431Z ##[group]Operating System
+2026-10-29T10:55:38.5632563Z Ubuntu
+2026-10-29T10:55:38.5633382Z 24.04.5
+2026-10-29T10:55:38.5634327Z LTS
+2026-10-29T10:55:38.5635214Z ##[endgroup]
+2026-10-29T10:55:38.5636088Z ##[group]Runner Image
+2026-10-29T10:55:38.5657706Z Image: ubuntu-24.04
+2026-10-29T10:55:38.5658703Z Version: 20261025.353.1
+2026-10-29T10:55:38.5661232Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261025.353/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-29T10:55:38.5664128Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261025.353
+2026-10-29T10:55:38.5665915Z ##[endgroup]
+2026-10-29T10:55:38.5668081Z ##[group]GITHUB_TOKEN Permissions
+2026-10-29T10:55:38.5671066Z Contents: read
+2026-10-29T10:55:38.5672213Z Metadata: read
+2026-10-29T10:55:38.5673090Z ##[endgroup]
+2026-10-29T10:55:38.5676336Z Secret source: Actions
+2026-10-29T10:55:38.5682195Z Cache mode: write
+2026-10-29T10:55:38.5683746Z Prepare workflow directory
+2026-10-29T10:55:38.6773985Z Prepare all required actions
+2026-10-29T10:55:38.6848263Z Getting action download info
+2026-10-29T10:55:38.8492765Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-10-29T10:55:38.9440440Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-10-29T10:55:39.1487307Z Complete job name: Detect known migration defects (does not approve migration)
+2026-10-29T10:55:39.2103800Z ##[group]Checking docker version
+2026-10-29T10:55:39.2117496Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-10-29T10:55:39.3031032Z '1.48'
+2026-10-29T10:55:39.3052658Z Docker daemon API version: '1.48'
+2026-10-29T10:55:39.3053499Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-10-29T10:55:39.3288461Z '1.48'
+2026-10-29T10:55:39.3303996Z Docker client API version: '1.48'
+2026-10-29T10:55:39.3311109Z ##[endgroup]
+2026-10-29T10:55:39.3314118Z ##[group]Clean up resources from previous jobs
+2026-10-29T10:55:39.3320255Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=89e2d2"
+2026-10-29T10:55:39.3518061Z ##[command]/usr/bin/docker network prune --force --filter "label=89e2d2"
+2026-10-29T10:55:39.3712065Z ##[endgroup]
+2026-10-29T10:55:39.3712648Z ##[group]Create local container network
+2026-10-29T10:55:39.3723910Z ##[command]/usr/bin/docker network create --label 89e2d2 github_network_64396570b5034e7c9feb9e587a8c0606
+2026-10-29T10:55:39.4490298Z 5e55040cc4dec73d2a6c36a9ccf3237af6fae7b894ebecd7476beb25251e2af9
+2026-10-29T10:55:39.4534819Z ##[endgroup]
+2026-10-29T10:55:39.4583717Z ##[group]Starting postgres service container
+2026-10-29T10:55:39.4616584Z ##[command]/usr/bin/docker pull postgres:16
+2026-10-29T10:55:39.7316030Z 16: Pulling from library/postgres
+2026-10-29T10:55:39.8019635Z 6fc242d221a6: Pulling fs layer
+2026-10-29T10:55:39.8020794Z d06edb2e3f43: Pulling fs layer
+2026-10-29T10:55:39.8021740Z 3795839385bc: Pulling fs layer
+2026-10-29T10:55:39.8022651Z cea4f0db46a6: Pulling fs layer
+2026-10-29T10:55:39.8023309Z 9b1a18996a22: Pulling fs layer
+2026-10-29T10:55:39.8024008Z fbc84e711712: Pulling fs layer
+2026-10-29T10:55:39.8024776Z 879995175298: Pulling fs layer
+2026-10-29T10:55:39.8025488Z d89068781d71: Pulling fs layer
+2026-10-29T10:55:39.8026018Z 5c4d204f6daa: Pulling fs layer
+2026-10-29T10:55:39.8027398Z 28d8a96df569: Pulling fs layer
+2026-10-29T10:55:39.8029244Z b355a8fcc1d3: Pulling fs layer
+2026-10-29T10:55:39.8030981Z dc3e98153fd4: Pulling fs layer
+2026-10-29T10:55:39.8032222Z c60d02d02e9b: Pulling fs layer
+2026-10-29T10:55:39.8033153Z 7ee6ed8de1c8: Pulling fs layer
+2026-10-29T10:55:39.8034841Z d89068781d71: Waiting
+2026-10-29T10:55:39.8035648Z 5c4d204f6daa: Waiting
+2026-10-29T10:55:39.8036677Z 28d8a96df569: Waiting
+2026-10-29T10:55:39.8038243Z b355a8fcc1d3: Waiting
+2026-10-29T10:55:39.8039136Z dc3e98153fd4: Waiting
+2026-10-29T10:55:39.8039641Z c60d02d02e9b: Waiting
+2026-10-29T10:55:39.8040214Z 7ee6ed8de1c8: Waiting
+2026-10-29T10:55:39.8040752Z cea4f0db46a6: Waiting
+2026-10-29T10:55:39.8041196Z 9b1a18996a22: Waiting
+2026-10-29T10:55:39.8041831Z 879995175298: Waiting
+2026-10-29T10:55:39.8042294Z fbc84e711712: Waiting
+2026-10-29T10:55:39.8365577Z d06edb2e3f43: Download complete
+2026-10-29T10:55:39.8651532Z 3795839385bc: Verifying Checksum
+2026-10-29T10:55:39.8658600Z 3795839385bc: Download complete
+2026-10-29T10:55:39.8968512Z cea4f0db46a6: Verifying Checksum
+2026-10-29T10:55:39.8970256Z cea4f0db46a6: Download complete
+2026-10-29T10:55:39.9491381Z 9b1a18996a22: Verifying Checksum
+2026-10-29T10:55:39.9495645Z 9b1a18996a22: Download complete
+2026-10-29T10:55:39.9669766Z fbc84e711712: Verifying Checksum
+2026-10-29T10:55:39.9670935Z fbc84e711712: Download complete
+2026-10-29T10:55:39.9843461Z 6fc242d221a6: Verifying Checksum
+2026-10-29T10:55:39.9846071Z 6fc242d221a6: Download complete
+2026-10-29T10:55:40.0029258Z 879995175298: Verifying Checksum
+2026-10-29T10:55:40.0031325Z 879995175298: Download complete
+2026-10-29T10:55:40.0135257Z d89068781d71: Verifying Checksum
+2026-10-29T10:55:40.0137772Z d89068781d71: Download complete
+2026-10-29T10:55:40.0777840Z 28d8a96df569: Verifying Checksum
+2026-10-29T10:55:40.0780164Z 28d8a96df569: Download complete
+2026-10-29T10:55:40.0930761Z b355a8fcc1d3: Verifying Checksum
+2026-10-29T10:55:40.0936127Z b355a8fcc1d3: Download complete
+2026-10-29T10:55:40.1429572Z dc3e98153fd4: Verifying Checksum
+2026-10-29T10:55:40.1438926Z dc3e98153fd4: Download complete
+2026-10-29T10:55:40.1443814Z c60d02d02e9b: Verifying Checksum
+2026-10-29T10:55:40.1445531Z c60d02d02e9b: Download complete
+2026-10-29T10:55:40.1904100Z 7ee6ed8de1c8: Verifying Checksum
+2026-10-29T10:55:40.1907142Z 7ee6ed8de1c8: Download complete
+2026-10-29T10:55:40.6060287Z 5c4d204f6daa: Verifying Checksum
+2026-10-29T10:55:40.6062004Z 5c4d204f6daa: Download complete
+2026-10-29T10:55:41.4467584Z 6fc242d221a6: Pull complete
+2026-10-29T10:55:43.1828595Z d06edb2e3f43: Pull complete
+2026-10-29T10:55:43.4510651Z 3795839385bc: Pull complete
+2026-10-29T10:55:43.5021345Z cea4f0db46a6: Pull complete
+2026-10-29T10:55:43.8652426Z 9b1a18996a22: Pull complete
+2026-10-29T10:55:43.9322894Z fbc84e711712: Pull complete
+2026-10-29T10:55:43.9403440Z 879995175298: Pull complete
+2026-10-29T10:55:43.9525158Z d89068781d71: Pull complete
+2026-10-29T10:55:48.2827640Z 5c4d204f6daa: Pull complete
+2026-10-29T10:55:48.2996261Z 28d8a96df569: Pull complete
+2026-10-29T10:55:48.3225528Z b355a8fcc1d3: Pull complete
+2026-10-29T10:55:48.3403179Z dc3e98153fd4: Pull complete
+2026-10-29T10:55:48.3532592Z c60d02d02e9b: Pull complete
+2026-10-29T10:55:48.3660535Z 7ee6ed8de1c8: Pull complete
+2026-10-29T10:55:48.3717512Z Digest: sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+2026-10-29T10:55:48.3735531Z Status: Downloaded newer image for postgres:16
+2026-10-29T10:55:48.3755458Z docker.io/library/postgres:16
+2026-10-29T10:55:48.3831250Z ##[command]/usr/bin/docker create --name cc1e6e0237a24e7e8996f9cef9953188_postgres16_941a80 --label 89e2d2 --network github_network_64396570b5034e7c9feb9e587a8c0606 --network-alias postgres -p 5432:5432 --health-cmd "pg_isready -U ci -d week4" --health-interval 5s --health-timeout 5s --health-retries 12 -e "POSTGRES_USER=ci" -e "POSTGRES_PASSWORD=synthetic-only" -e "POSTGRES_DB=week4" -e GITHUB_ACTIONS=true -e CI=true postgres:16
+2026-10-29T10:55:48.4174834Z 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:48.4205497Z ##[command]/usr/bin/docker start 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:48.6881723Z 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:48.6911263Z ##[command]/usr/bin/docker ps --all --filter id=7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-10-29T10:55:48.7161549Z 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2 Up Less than a second (health: starting)
+2026-10-29T10:55:48.7197557Z ##[command]/usr/bin/docker port 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:48.7439689Z 5432/tcp -> 0.0.0.0:5432
+2026-10-29T10:55:48.7440843Z 5432/tcp -> [::]:5432
+2026-10-29T10:55:48.7515409Z ##[endgroup]
+2026-10-29T10:55:48.7528289Z ##[group]Waiting for all services to be ready
+2026-10-29T10:55:48.7547401Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:48.7785371Z starting
+2026-10-29T10:55:48.7831254Z postgres service is starting, waiting 2 seconds before checking again.
+2026-10-29T10:55:50.7844939Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:50.8014633Z starting
+2026-10-29T10:55:50.8032479Z postgres service is starting, waiting 4 seconds before checking again.
+2026-10-29T10:55:55.1162059Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:55.1327000Z healthy
+2026-10-29T10:55:55.1369001Z postgres service is healthy.
+2026-10-29T10:55:55.1369676Z ##[endgroup]
+2026-10-29T10:55:55.1656489Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-10-29T10:55:55.1657445Z with:
+2026-10-29T10:55:55.1657715Z   repository: nabielss/sscriticalai-week4
+2026-10-29T10:55:55.1660251Z   token: ***
+2026-10-29T10:55:55.1660502Z   ssh-strict: true
+2026-10-29T10:55:55.1660708Z   ssh-user: git
+2026-10-29T10:55:55.1660914Z   persist-credentials: true
+2026-10-29T10:55:55.1661149Z   clean: true
+2026-10-29T10:55:55.1661359Z   sparse-checkout-cone-mode: true
+2026-10-29T10:55:55.1661605Z   fetch-depth: 1
+2026-10-29T10:55:55.1661801Z   fetch-tags: false
+2026-10-29T10:55:55.1662011Z   show-progress: true
+2026-10-29T10:55:55.1662225Z   lfs: false
+2026-10-29T10:55:55.1662412Z   submodules: false
+2026-10-29T10:55:55.1662626Z   set-safe-directory: true
+2026-10-29T10:55:55.1662873Z   allow-unsafe-pr-checkout: false
+2026-10-29T10:55:55.1663326Z env:
+2026-10-29T10:55:55.1663520Z   PGHOST: 127.0.0.1
+2026-10-29T10:55:55.1663728Z   PGPORT: 5432
+2026-10-29T10:55:55.1663965Z   PGUSER: ci
+2026-10-29T10:55:55.1664168Z   PGPASSWORD: synthetic-only
+2026-10-29T10:55:55.1664401Z   PGDATABASE: week4
+2026-10-29T10:55:55.1664604Z   EXPERIMENT_SCENARIO: both
+2026-10-29T10:55:55.1664834Z   REVIEWED_BY: Nabiel
+2026-10-29T10:55:55.1665038Z ##[endgroup]
+2026-10-29T10:55:55.4978498Z Syncing repository: nabielss/sscriticalai-week4
+2026-10-29T10:55:55.4980424Z ##[group]Getting Git version info
+2026-10-29T10:55:55.4981190Z Working directory is '/home/runner/work/sscriticalai-week4/sscriticalai-week4'
+2026-10-29T10:55:55.4982203Z [command]/usr/bin/git version
+2026-10-29T10:55:55.5099063Z git version 2.56.0
+2026-10-29T10:55:55.5130751Z ##[endgroup]
+2026-10-29T10:55:55.5154037Z Temporarily overriding HOME='/home/runner/work/_temp/bf288b86-5c7f-4613-b649-3b82a69daa92' before making global git config changes
+2026-10-29T10:55:55.5177968Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T10:55:55.5184120Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sscriticalai-week4/sscriticalai-week4
+2026-10-29T10:55:55.5261697Z Deleting the contents of '/home/runner/work/sscriticalai-week4/sscriticalai-week4'
+2026-10-29T10:55:55.5266362Z ##[group]Determining repository object format
+2026-10-29T10:55:55.5268676Z ##[endgroup]
+2026-10-29T10:55:55.5269884Z ##[group]Initializing the repository
+2026-10-29T10:55:55.5276047Z [command]/usr/bin/git init /home/runner/work/sscriticalai-week4/sscriticalai-week4
+2026-10-29T10:55:55.5421320Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-29T10:55:55.5423095Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-29T10:55:55.5425235Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-29T10:55:55.5447096Z hint: call:
+2026-10-29T10:55:55.5447765Z hint:
+2026-10-29T10:55:55.5448520Z hint: 	git config --global init.defaultBranch <name>
+2026-10-29T10:55:55.5461140Z hint:
+2026-10-29T10:55:55.5470533Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-29T10:55:55.5488777Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-29T10:55:55.5508379Z hint:
+2026-10-29T10:55:55.5509354Z hint: 	git branch -m <name>
+2026-10-29T10:55:55.5510491Z hint:
+2026-10-29T10:55:55.5511348Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-29T10:55:55.5513136Z Initialized empty Git repository in /home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/
+2026-10-29T10:55:55.5517683Z [command]/usr/bin/git remote add origin https://github.com/nabielss/sscriticalai-week4
+2026-10-29T10:55:55.5583340Z ##[endgroup]
+2026-10-29T10:55:55.5598850Z ##[group]Disabling automatic garbage collection
+2026-10-29T10:55:55.5724434Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-29T10:55:55.5729441Z ##[endgroup]
+2026-10-29T10:55:55.5747834Z ##[group]Setting up auth
+2026-10-29T10:55:55.5748706Z Removing SSH command configuration
+2026-10-29T10:55:55.5757791Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T10:55:55.5763118Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T10:55:55.6288300Z Removing HTTP extra header
+2026-10-29T10:55:55.6289584Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T10:55:55.6329361Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T10:55:55.6600253Z Removing includeIf entries pointing to credentials config files
+2026-10-29T10:55:55.6605234Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T10:55:55.6671140Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T10:55:55.6948489Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-29T10:55:55.7011247Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path /home/runner/work/_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config
+2026-10-29T10:55:55.7069413Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config
+2026-10-29T10:55:55.7125677Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config
+2026-10-29T10:55:55.7163476Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config
+2026-10-29T10:55:55.7211635Z ##[endgroup]
+2026-10-29T10:55:55.7212921Z ##[group]Fetching the repository
+2026-10-29T10:55:55.7219938Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +11761d3b04b54d7b8fd19105547da2154c130dd8:refs/remotes/origin/main
+2026-10-29T10:55:55.9799780Z From https://github.com/nabielss/sscriticalai-week4
+2026-10-29T10:55:55.9969167Z  * [new ref]         11761d3b04b54d7b8fd19105547da2154c130dd8 -> origin/main
+2026-10-29T10:55:56.0060368Z [command]/usr/bin/git branch --list --remote origin/main
+2026-10-29T10:55:56.0061961Z   origin/main
+2026-10-29T10:55:56.0065169Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2026-10-29T10:55:56.0087819Z 11761d3b04b54d7b8fd19105547da2154c130dd8
+2026-10-29T10:55:56.0155654Z ##[endgroup]
+2026-10-29T10:55:56.0158541Z ##[group]Determining the checkout info
+2026-10-29T10:55:56.0159879Z ##[endgroup]
+2026-10-29T10:55:56.0161326Z [command]/usr/bin/git sparse-checkout disable
+2026-10-29T10:55:56.0163833Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-29T10:55:56.0171272Z ##[group]Checking out the ref
+2026-10-29T10:55:56.0171961Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-29T10:55:56.0172555Z Switched to a new branch 'main'
+2026-10-29T10:55:56.0172873Z branch 'main' set up to track 'origin/main'.
+2026-10-29T10:55:56.0185079Z ##[endgroup]
+2026-10-29T10:55:56.0258302Z [command]/usr/bin/git log -1 --format=%H
+2026-10-29T10:55:56.0303636Z 11761d3b04b54d7b8fd19105547da2154c130dd8
+2026-10-29T10:55:56.0554814Z ##[group]Run set -euo pipefail
+2026-10-29T10:55:56.0555239Z [36;1mset -euo pipefail[0m
+2026-10-29T10:55:56.0555504Z [36;1mmkdir -p artifacts[0m
+2026-10-29T10:55:56.0555731Z [36;1m{[0m
+2026-10-29T10:55:56.0556019Z [36;1m  reviewed_by=$(printf '%s' "$REVIEWED_BY" | tr '\r\n' '  ')[0m
+2026-10-29T10:55:56.0556421Z [36;1m  if [[ -z "${reviewed_by//[[:space:]]/}" ]]; then[0m
+2026-10-29T10:55:56.0557116Z [36;1m    echo 'REVIEWED_BY is required' >&2[0m
+2026-10-29T10:55:56.0557513Z [36;1m    exit 1[0m
+2026-10-29T10:55:56.0557720Z [36;1m  fi[0m
+2026-10-29T10:55:56.0557932Z [36;1m  echo "COMMIT_SHA=$GITHUB_SHA"[0m
+2026-10-29T10:55:56.0558207Z [36;1m  echo "RUN_ID=$GITHUB_RUN_ID"[0m
+2026-10-29T10:55:56.0558505Z [36;1m  echo "RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT"[0m
+2026-10-29T10:55:56.0558953Z [36;1m  echo "RUN_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"[0m
+2026-10-29T10:55:56.0559380Z [36;1m  echo "RUNNER_OS=$RUNNER_OS"[0m
+2026-10-29T10:55:56.0559713Z [36;1m  echo "RUNNER_ARCH=$RUNNER_ARCH"[0m
+2026-10-29T10:55:56.0559997Z [36;1m  echo "RUNNER_NAME=$RUNNER_NAME"[0m
+2026-10-29T10:55:56.0560294Z [36;1m  echo "SCRIPT_AUTHOR=Codex (AI assistant)"[0m
+2026-10-29T10:55:56.0560603Z [36;1m  echo "TRIGGERED_BY=$GITHUB_ACTOR"[0m
+2026-10-29T10:55:56.0560963Z [36;1m  echo "RUN_BY=GitHub-hosted Actions, triggered by $GITHUB_ACTOR"[0m
+2026-10-29T10:55:56.0561396Z [36;1m  echo "EXECUTED_ON=$RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"[0m
+2026-10-29T10:55:56.0561784Z [36;1m  printf 'REVIEWED_BY=%s\n' "$reviewed_by"[0m
+2026-10-29T10:55:56.0562123Z [36;1m  echo 'MANUAL_CHECK=POST_RUN_REVIEW_PENDING'[0m
+2026-10-29T10:55:56.0562462Z [36;1m  echo "SELECTED_SCENARIO=$EXPERIMENT_SCENARIO"[0m
+2026-10-29T10:55:56.0562817Z [36;1m  echo "DATE_TIME_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"[0m
+2026-10-29T10:55:56.0563232Z [36;1m  echo 'DATA=3 deterministic synthetic invoices; no external data'[0m
+2026-10-29T10:55:56.0563651Z [36;1m  echo 'SEED=not applicable; fixed fixture rows'[0m
+2026-10-29T10:55:56.0564000Z [36;1m  echo 'COMMAND=bash scripts/experiment-01.sh'[0m
+2026-10-29T10:55:56.0564443Z [36;1m  echo "SCRIPT_SHA256=$(sha256sum scripts/experiment-01.sh | cut -d' ' -f1)"[0m
+2026-10-29T10:55:56.0565066Z [36;1m  echo "WORKFLOW_SHA256=$(sha256sum .github/workflows/week4-experiment-01.yml | cut -d' ' -f1)"[0m
+2026-10-29T10:55:56.0565540Z [36;1m  echo "CPU_COUNT=$(nproc)"[0m
+2026-10-29T10:55:56.0565797Z [36;1m  echo 'MEMORY:'[0m
+2026-10-29T10:55:56.0566272Z [36;1m  grep -E 'MemTotal|MemAvailable' /proc/meminfo[0m
+2026-10-29T10:55:56.0566577Z [36;1m  echo 'DISK:'[0m
+2026-10-29T10:55:56.0567091Z [36;1m  df -h "$GITHUB_WORKSPACE"[0m
+2026-10-29T10:55:56.0567482Z [36;1m  echo 'POSTGRES_IMAGE=postgres:16 (major pinned; patch reported below)'[0m
+2026-10-29T10:55:56.0567934Z [36;1m  psql -X -v ON_ERROR_STOP=1 -c 'SELECT version();'[0m
+2026-10-29T10:55:56.0568275Z [36;1m} 2>&1 | tee artifacts/runner-rig.log[0m
+2026-10-29T10:55:56.0592662Z shell: /usr/bin/bash -e {0}
+2026-10-29T10:55:56.0592953Z env:
+2026-10-29T10:55:56.0593159Z   PGHOST: 127.0.0.1
+2026-10-29T10:55:56.0593373Z   PGPORT: 5432
+2026-10-29T10:55:56.0593571Z   PGUSER: ci
+2026-10-29T10:55:56.0593775Z   PGPASSWORD: synthetic-only
+2026-10-29T10:55:56.0594015Z   PGDATABASE: week4
+2026-10-29T10:55:56.0594226Z   EXPERIMENT_SCENARIO: both
+2026-10-29T10:55:56.0594450Z   REVIEWED_BY: Nabiel
+2026-10-29T10:55:56.0594660Z ##[endgroup]
+2026-10-29T10:55:56.0709639Z COMMIT_SHA=11761d3b04b54d7b8fd19105547da2154c130dd8
+2026-10-29T10:55:56.0714026Z RUN_ID=40861368934
+2026-10-29T10:55:56.0723494Z RUN_ATTEMPT=1
+2026-10-29T10:55:56.0724313Z RUN_URL=https://github.com/nabielss/sscriticalai-week4/actions/runs/40861368934
+2026-10-29T10:55:56.0726606Z RUNNER_OS=Linux
+2026-10-29T10:55:56.0727965Z RUNNER_ARCH=X64
+2026-10-29T10:55:56.0728639Z RUNNER_NAME=GitHub Actions 1000000015
+2026-10-29T10:55:56.0729350Z SCRIPT_AUTHOR=Codex (AI assistant)
+2026-10-29T10:55:56.0730054Z TRIGGERED_BY=nabielss
+2026-10-29T10:55:56.0731169Z RUN_BY=GitHub-hosted Actions, triggered by nabielss
+2026-10-29T10:55:56.0732067Z EXECUTED_ON=GitHub Actions 1000000015 (Linux/X64)
+2026-10-29T10:55:56.0732810Z REVIEWED_BY=Nabiel
+2026-10-29T10:55:56.0733424Z MANUAL_CHECK=POST_RUN_REVIEW_PENDING
+2026-10-29T10:55:56.0734086Z SELECTED_SCENARIO=both
+2026-10-29T10:55:56.0734696Z DATE_TIME_UTC=2026-10-29T10:55:56Z
+2026-10-29T10:55:56.0735470Z DATA=3 deterministic synthetic invoices; no external data
+2026-10-29T10:55:56.0736297Z SEED=not applicable; fixed fixture rows
+2026-10-29T10:55:56.0737319Z COMMAND=bash scripts/experiment-01.sh
+2026-10-29T10:55:56.0763283Z SCRIPT_SHA256=bb62f5dbe6a9ec45ff78b65782bf8bd283cbff0f51e7210bd474a5f9a87a106a
+2026-10-29T10:55:56.0789100Z WORKFLOW_SHA256=846a5cd8f1fe879a745b22a92d212457414dcb99441eaed43aaece02f554b5e5
+2026-10-29T10:55:56.0809029Z CPU_COUNT=2
+2026-10-29T10:55:56.0809923Z MEMORY:
+2026-10-29T10:55:56.0823826Z MemTotal:        8122984 kB
+2026-10-29T10:55:56.0824697Z MemAvailable:    7153972 kB
+2026-10-29T10:55:56.0825896Z DISK:
+2026-10-29T10:55:56.0844459Z Filesystem      Size  Used Avail Use% Mounted on
+2026-10-29T10:55:56.0845475Z /dev/root        72G   60G   13G  83% /
+2026-10-29T10:55:56.0846389Z POSTGRES_IMAGE=postgres:16 (major pinned; patch reported below)
+2026-10-29T10:55:56.1654053Z                                                        version                                                        
+2026-10-29T10:55:56.1657144Z ----------------------------------------------------------------------------------------------------------------------
+2026-10-29T10:55:56.1662503Z  PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T10:55:56.1669935Z (1 row)
+2026-10-29T10:55:56.1670361Z 
+2026-10-29T10:55:56.1716061Z ##[group]Run set +e
+2026-10-29T10:55:56.1716340Z [36;1mset +e[0m
+2026-10-29T10:55:56.1716689Z [36;1mbash scripts/experiment-01.sh 2>&1 | tee artifacts/experiment-01.log[0m
+2026-10-29T10:55:56.1717638Z [36;1mpipeline_status=("${PIPESTATUS[@]}")[0m
+2026-10-29T10:55:56.1717977Z [36;1mscript_status=${pipeline_status[0]}[0m
+2026-10-29T10:55:56.1718277Z [36;1mtee_status=${pipeline_status[1]}[0m
+2026-10-29T10:55:56.1718728Z [36;1mprintf 'SCRIPT_EXIT_STATUS=%s\n' "$script_status" | tee -a artifacts/experiment-01.log[0m
+2026-10-29T10:55:56.1719209Z [36;1mif [[ "$tee_status" -ne 0 ]]; then[0m
+2026-10-29T10:55:56.1719562Z [36;1m  echo 'Failed to persist the complete script output' >&2[0m
+2026-10-29T10:55:56.1720097Z [36;1m  exit 74[0m
+2026-10-29T10:55:56.1720300Z [36;1mfi[0m
+2026-10-29T10:55:56.1720498Z [36;1mexit "$script_status"[0m
+2026-10-29T10:55:56.1741043Z shell: /usr/bin/bash -e {0}
+2026-10-29T10:55:56.1741299Z env:
+2026-10-29T10:55:56.1741533Z   PGHOST: 127.0.0.1
+2026-10-29T10:55:56.1741745Z   PGPORT: 5432
+2026-10-29T10:55:56.1741946Z   PGUSER: ci
+2026-10-29T10:55:56.1742153Z   PGPASSWORD: synthetic-only
+2026-10-29T10:55:56.1742400Z   PGDATABASE: week4
+2026-10-29T10:55:56.1742613Z   EXPERIMENT_SCENARIO: both
+2026-10-29T10:55:56.1742841Z   REVIEWED_BY: Nabiel
+2026-10-29T10:55:56.1743052Z ##[endgroup]
+2026-10-29T10:55:56.1821315Z EXPERIMENT=01 OLD_APP_COMPATIBILITY_AND_DOWN_CURRENCY
+2026-10-29T10:55:56.1828186Z DATA=synthetic; no production or staging connection
+2026-10-29T10:55:56.1833300Z MIGRATION=verbatim SQL from ChallengeWeek4.md, wrapped in one transaction (runner behavior unknown)
+2026-10-29T10:55:56.1834422Z SELECTED_SCENARIO=both
+2026-10-29T10:55:56.2218383Z                                                        version                                                        
+2026-10-29T10:55:56.2225880Z ----------------------------------------------------------------------------------------------------------------------
+2026-10-29T10:55:56.2227477Z  PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T10:55:56.2228626Z (1 row)
+2026-10-29T10:55:56.2229021Z 
+2026-10-29T10:55:56.2229457Z SCENARIO_A=old_application_read_and_write
+2026-10-29T10:55:56.2623712Z NOTICE:  table "invoices" does not exist, skipping
+2026-10-29T10:55:56.2637961Z DROP TABLE
+2026-10-29T10:55:56.2704119Z CREATE TABLE
+2026-10-29T10:55:56.2729126Z INSERT 0 3
+2026-10-29T10:55:56.3145446Z ASSERTION_PASS old_query_before_rename value=<10.00>
+2026-10-29T10:55:56.3535920Z INSERT 0 1
+2026-10-29T10:55:56.3935528Z ASSERTION_PASS old_insert_before_rename value=<40.00>
+2026-10-29T10:55:56.4418255Z BEGIN
+2026-10-29T10:55:56.4423421Z ALTER TABLE
+2026-10-29T10:55:56.4444981Z UPDATE 4
+2026-10-29T10:55:56.4452994Z CREATE INDEX
+2026-10-29T10:55:56.4466256Z ALTER TABLE
+2026-10-29T10:55:56.4487353Z ALTER TABLE
+2026-10-29T10:55:56.4527333Z COMMIT
+2026-10-29T10:55:56.5403481Z ASSERTION_PASS new_query_after_up value=<10.00:EUR>
+2026-10-29T10:55:56.5704899Z ERROR:  column "amount" does not exist
+2026-10-29T10:55:56.5706245Z LINE 1: SELECT amount FROM invoices WHERE id = 1;
+2026-10-29T10:55:56.5717117Z                ^
+2026-10-29T10:55:56.5717699Z ASSERTION_PASS old_query_after_rename=missing_column_error
+2026-10-29T10:55:56.6146163Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:55:56.6147868Z LINE 1: INSERT INTO invoices (id, country, amount) VALUES (5, 'DE', ...
+2026-10-29T10:55:56.6150335Z                                            ^
+2026-10-29T10:55:56.6166080Z ASSERTION_PASS old_insert_after_rename=missing_column_error
+2026-10-29T10:55:56.6167388Z SCENARIO_B=down_currency_information
+2026-10-29T10:55:56.6563650Z DROP TABLE
+2026-10-29T10:55:56.6581405Z CREATE TABLE
+2026-10-29T10:55:56.6616863Z INSERT 0 3
+2026-10-29T10:55:56.6979850Z BEGIN
+2026-10-29T10:55:56.6992288Z ALTER TABLE
+2026-10-29T10:55:56.6992699Z UPDATE 3
+2026-10-29T10:55:56.7009037Z CREATE INDEX
+2026-10-29T10:55:56.7017475Z ALTER TABLE
+2026-10-29T10:55:56.7019715Z ALTER TABLE
+2026-10-29T10:55:56.7027419Z COMMIT
+2026-10-29T10:55:56.7728065Z ASSERTION_PASS currency_index_count_after_up value=<1>
+2026-10-29T10:55:56.8354065Z  schemaname | tablename |       indexname       |                                         indexdef                                         
+2026-10-29T10:55:56.8558045Z ------------+-----------+-----------------------+------------------------------------------------------------------------------------------
+2026-10-29T10:55:56.8648484Z  public     | invoices  | invoices_currency_idx | CREATE INDEX invoices_currency_idx ON public.invoices USING btree (currency, created_at)
+2026-10-29T10:55:56.8650507Z (1 row)
+2026-10-29T10:55:56.8650900Z 
+2026-10-29T10:55:56.8760325Z ASSERTION_PASS currency_before_down_positive_control value=<1:EUR,2:IDR,3:USD>
+2026-10-29T10:55:56.9168590Z UPDATE 1
+2026-10-29T10:55:56.9564461Z ASSERTION_PASS explicit_currency_before_down value=<EUR>
+2026-10-29T10:55:57.0168357Z SNAPSHOT_BEFORE_DOWN currencies=1:EUR,2:IDR,3:USD; id3_currency_override=EUR; amount_sum=60.00
+2026-10-29T10:55:57.0767095Z BEGIN
+2026-10-29T10:55:57.0789093Z ALTER TABLE
+2026-10-29T10:55:57.0817460Z ALTER TABLE
+2026-10-29T10:55:57.0837525Z COMMIT
+2026-10-29T10:55:57.1999906Z ASSERTION_PASS currency_column_after_down value=<0>
+2026-10-29T10:55:57.2000937Z ASSERTION_PASS amount_column_after_down value=<1>
+2026-10-29T10:55:57.2401524Z ASSERTION_PASS amount_sum_after_down value=<60.00>
+2026-10-29T10:55:57.2805530Z ASSERTION_PASS amount_nonneg_constraint_persists_after_down value=<1>
+2026-10-29T10:55:57.3178022Z  schemaname | tablename | indexname | indexdef 
+2026-10-29T10:55:57.3179109Z ------------+-----------+-----------+----------
+2026-10-29T10:55:57.3179841Z (0 rows)
+2026-10-29T10:55:57.3180283Z 
+2026-10-29T10:55:57.3643551Z ASSERTION_PASS currency_index_count_after_down value=<0>
+2026-10-29T10:55:57.3652238Z OBSERVED currency_column_count_after_down=0
+2026-10-29T10:55:57.3653333Z OBSERVED amount_nonneg_constraint_count_after_down=1
+2026-10-29T10:55:57.3654202Z OBSERVED currency_index_count_before_down=1 after_down=0
+2026-10-29T10:55:57.3655120Z ASSERTION_BATCH_COMPLETE scenario=both
+2026-10-29T10:55:57.3665080Z SCRIPT_EXIT_STATUS=0
+2026-10-29T10:55:57.3766135Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-10-29T10:55:57.3766563Z with:
+2026-10-29T10:55:57.3767162Z   name: week4-experiment-01-40861368934-1
+2026-10-29T10:55:57.3767454Z   path: artifacts/
+2026-10-29T10:55:57.3767678Z   if-no-files-found: warn
+2026-10-29T10:55:57.3767914Z   retention-days: 14
+2026-10-29T10:55:57.3768129Z   compression-level: 6
+2026-10-29T10:55:57.3768340Z   overwrite: false
+2026-10-29T10:55:57.3768554Z   include-hidden-files: false
+2026-10-29T10:55:57.3768784Z   archive: true
+2026-10-29T10:55:57.3768990Z env:
+2026-10-29T10:55:57.3769170Z   PGHOST: 127.0.0.1
+2026-10-29T10:55:57.3769365Z   PGPORT: 5432
+2026-10-29T10:55:57.3769553Z   PGUSER: ci
+2026-10-29T10:55:57.3769755Z   PGPASSWORD: synthetic-only
+2026-10-29T10:55:57.3769994Z   PGDATABASE: week4
+2026-10-29T10:55:57.3770200Z   EXPERIMENT_SCENARIO: both
+2026-10-29T10:55:57.3770429Z   REVIEWED_BY: Nabiel
+2026-10-29T10:55:57.3770633Z ##[endgroup]
+2026-10-29T10:55:57.5964235Z With the provided path, there will be 4 files uploaded
+2026-10-29T10:55:57.5965053Z Artifact name is valid!
+2026-10-29T10:55:57.5998744Z Root directory input is valid!
+2026-10-29T10:55:57.8723798Z Uploading artifact: week4-experiment-01-40861368934-1.zip
+2026-10-29T10:55:57.8744921Z Beginning upload of artifact content to blob storage
+2026-10-29T10:55:57.9372213Z Uploaded bytes 2598
+2026-10-29T10:55:57.9507195Z Finished uploading artifact content to blob storage!
+2026-10-29T10:55:57.9510308Z SHA256 digest of uploaded artifact is f59f684dcdae1de9f739bc0bc18ce8a31856e9e548442ce63b88d2d728e92b7a
+2026-10-29T10:55:57.9511628Z Finalizing artifact upload
+2026-10-29T10:55:58.3998817Z Artifact week4-experiment-01-40861368934-1 successfully finalized. Artifact ID 12891841365
+2026-10-29T10:55:58.4000561Z Artifact week4-experiment-01-40861368934-1 has been successfully uploaded! Final size is 2598 bytes. Artifact ID is 12891841365
+2026-10-29T10:55:58.4004718Z Artifact download URL: https://github.com/nabielss/sscriticalai-week4/actions/runs/40861368934/artifacts/12891841365
+2026-10-29T10:55:58.4235625Z Post job cleanup.
+2026-10-29T10:55:58.5237344Z [command]/usr/bin/git version
+2026-10-29T10:55:58.5347916Z git version 2.56.0
+2026-10-29T10:55:58.5390857Z Temporarily overriding HOME='/home/runner/work/_temp/e09a6786-769b-49dc-92ce-b3ffcb3c4983' before making global git config changes
+2026-10-29T10:55:58.5399325Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T10:55:58.5422608Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sscriticalai-week4/sscriticalai-week4
+2026-10-29T10:55:58.5482929Z Removing SSH command configuration
+2026-10-29T10:55:58.5484196Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T10:55:58.5578326Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T10:55:58.5960119Z Removing HTTP extra header
+2026-10-29T10:55:58.5969421Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T10:55:58.6050062Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T10:55:58.6632920Z Removing includeIf entries pointing to credentials config files
+2026-10-29T10:55:58.6693444Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T10:55:58.6707448Z includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path
+2026-10-29T10:55:58.6716527Z includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path
+2026-10-29T10:55:58.6718117Z includeif.gitdir:/github/workspace/.git.path
+2026-10-29T10:55:58.6719433Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-29T10:55:58.6722676Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path
+2026-10-29T10:55:58.6724658Z /home/runner/work/_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config
+2026-10-29T10:55:58.6729960Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-b3f6e253\-12c6\-4d7c\-9fb4\-4eb1a599625f\.config
+2026-10-29T10:55:58.6746551Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path
+2026-10-29T10:55:58.6788495Z /home/runner/work/_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config
+2026-10-29T10:55:58.6825072Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-b3f6e253\-12c6\-4d7c\-9fb4\-4eb1a599625f\.config
+2026-10-29T10:55:58.6870738Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-10-29T10:55:58.6901707Z /github/runner_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config
+2026-10-29T10:55:58.6911185Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-b3f6e253\-12c6\-4d7c\-9fb4\-4eb1a599625f\.config
+2026-10-29T10:55:58.6968775Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-29T10:55:58.7002959Z /github/runner_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config
+2026-10-29T10:55:58.7012068Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-b3f6e253\-12c6\-4d7c\-9fb4\-4eb1a599625f\.config
+2026-10-29T10:55:58.7066109Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T10:55:58.7342126Z Removing credentials config '/home/runner/work/_temp/git-credentials-b3f6e253-12c6-4d7c-9fb4-4eb1a599625f.config'
+2026-10-29T10:55:58.7477579Z Print service container logs: cc1e6e0237a24e7e8996f9cef9953188_postgres16_941a80
+2026-10-29T10:55:58.7482090Z ##[command]/usr/bin/docker logs --details 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:58.7653001Z  The files belonging to this database system will be owned by user "postgres".
+2026-10-29T10:55:58.7659004Z  initdb: warning: enabling "trust" authentication for local connections
+2026-10-29T10:55:58.7660952Z  initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+2026-10-29T10:55:58.7662078Z  This user must also own the server process.
+2026-10-29T10:55:58.7662928Z  
+2026-10-29T10:55:58.7663895Z  The database cluster will be initialized with locale "en_US.utf8".
+2026-10-29T10:55:58.7665015Z  The default database encoding has accordingly been set to "UTF8".
+2026-10-29T10:55:58.7666388Z  The default text search configuration will be set to "english".
+2026-10-29T10:55:58.7667983Z  2026-10-29 10:55:49.788 UTC [1] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T10:55:58.7669269Z  2026-10-29 10:55:49.788 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-29T10:55:58.7676742Z  2026-10-29 10:55:49.788 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-10-29T10:55:58.7678831Z  2026-10-29 10:55:49.790 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-29T10:55:58.7680566Z  2026-10-29 10:55:49.795 UTC [64] LOG:  database system was shut down at 2026-10-29 10:55:49 UTC
+2026-10-29T10:55:58.7681521Z  2026-10-29 10:55:49.802 UTC [1] LOG:  database system is ready to accept connections
+2026-10-29T10:55:58.7682412Z  2026-10-29 10:55:56.565 UTC [84] ERROR:  column "amount" does not exist at character 8
+2026-10-29T10:55:58.7683216Z  2026-10-29 10:55:56.565 UTC [84] STATEMENT:  SELECT amount FROM invoices WHERE id = 1;
+2026-10-29T10:55:58.7684162Z  2026-10-29 10:55:56.609 UTC [85] ERROR:  column "amount" of relation "invoices" does not exist at character 36
+2026-10-29T10:55:58.7685297Z  2026-10-29 10:55:56.609 UTC [85] STATEMENT:  INSERT INTO invoices (id, country, amount) VALUES (5, 'DE', 50.00);
+2026-10-29T10:55:58.7721371Z  
+2026-10-29T10:55:58.7730801Z  Data page checksums are disabled.
+2026-10-29T10:55:58.7731833Z  
+2026-10-29T10:55:58.7732889Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2026-10-29T10:55:58.7733797Z  creating subdirectories ... ok
+2026-10-29T10:55:58.7734485Z  selecting dynamic shared memory implementation ... posix
+2026-10-29T10:55:58.7735231Z  selecting default max_connections ... 100
+2026-10-29T10:55:58.7735847Z  selecting default shared_buffers ... 128MB
+2026-10-29T10:55:58.7736501Z  selecting default time zone ... Etc/UTC
+2026-10-29T10:55:58.7737400Z  creating configuration files ... ok
+2026-10-29T10:55:58.7737957Z  running bootstrap script ... ok
+2026-10-29T10:55:58.7738591Z  performing post-bootstrap initialization ... ok
+2026-10-29T10:55:58.7739253Z  syncing data to disk ... ok
+2026-10-29T10:55:58.7739745Z  
+2026-10-29T10:55:58.7740199Z  
+2026-10-29T10:55:58.7740733Z  Success. You can now start the database server using:
+2026-10-29T10:55:58.7741368Z  
+2026-10-29T10:55:58.7741908Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+2026-10-29T10:55:58.7742590Z  
+2026-10-29T10:55:58.7743798Z  waiting for server to start....2026-10-29 10:55:49.469 UTC [48] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T10:55:58.7745534Z  2026-10-29 10:55:49.470 UTC [48] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-29T10:55:58.7746669Z  2026-10-29 10:55:49.472 UTC [51] LOG:  database system was shut down at 2026-10-29 10:55:49 UTC
+2026-10-29T10:55:58.7748502Z  2026-10-29 10:55:49.476 UTC [48] LOG:  database system is ready to accept connections
+2026-10-29T10:55:58.7749713Z   done
+2026-10-29T10:55:58.7750208Z  server started
+2026-10-29T10:55:58.7750679Z  CREATE DATABASE
+2026-10-29T10:55:58.7751138Z  
+2026-10-29T10:55:58.7751593Z  
+2026-10-29T10:55:58.7752300Z  /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+2026-10-29T10:55:58.7753123Z  
+2026-10-29T10:55:58.7754187Z  waiting for server to shut down....2026-10-29 10:55:49.661 UTC [48] LOG:  received fast shutdown request
+2026-10-29T10:55:58.7755292Z  2026-10-29 10:55:49.662 UTC [48] LOG:  aborting any active transactions
+2026-10-29T10:55:58.7756493Z  2026-10-29 10:55:49.666 UTC [48] LOG:  background worker "logical replication launcher" (PID 54) exited with exit code 1
+2026-10-29T10:55:58.7757888Z  2026-10-29 10:55:49.666 UTC [49] LOG:  shutting down
+2026-10-29T10:55:58.7758777Z  2026-10-29 10:55:49.667 UTC [49] LOG:  checkpoint starting: shutdown immediate
+2026-10-29T10:55:58.7760889Z  2026-10-29 10:55:49.682 UTC [49] LOG:  checkpoint complete: wrote 926 buffers (5.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.013 s, sync=0.002 s, total=0.016 s; sync files=301, longest=0.001 s, average=0.001 s; distance=4273 kB, estimate=4273 kB; lsn=0/191F0E0, redo lsn=0/191F0E0
+2026-10-29T10:55:58.7763729Z  2026-10-29 10:55:49.690 UTC [48] LOG:  database system is shut down
+2026-10-29T10:55:58.7779031Z   done
+2026-10-29T10:55:58.7779833Z  server stopped
+2026-10-29T10:55:58.7780320Z  
+2026-10-29T10:55:58.7780863Z  PostgreSQL init process complete; ready for start up.
+2026-10-29T10:55:58.7781530Z  
+2026-10-29T10:55:58.7791258Z Stop and remove container: cc1e6e0237a24e7e8996f9cef9953188_postgres16_941a80
+2026-10-29T10:55:58.7801216Z ##[command]/usr/bin/docker rm --force 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:58.9481439Z 7960773439ad29fd55351468a96979a2a5ca3128aa2b64b1947e827492dc14e2
+2026-10-29T10:55:58.9502196Z Remove container network: github_network_64396570b5034e7c9feb9e587a8c0606
+2026-10-29T10:55:58.9506565Z ##[command]/usr/bin/docker network rm github_network_64396570b5034e7c9feb9e587a8c0606
+2026-10-29T10:55:59.0311155Z github_network_64396570b5034e7c9feb9e587a8c0606
+2026-10-29T10:55:59.0385127Z Cleaning up orphan processes
+
+Hasil bacaan artifact:
+  Bacaan Run 04 (run 40861368934)
+
+  Run 04 lolos tanpa kejutan. Semua prediksi saya terpenuhi, tidak ada hal yang membuat saya curiga,
+  dan assertion INSERT lama yang baru ikut lolos. Ini bukti kerusakan logis pada fixture 3–4 baris.
+  Ini bukan bukti dampak operasional di 120M baris.
+
+  Verifikasi provenance (RAN, oleh saya, dari zip di Downloads)
+
+  - SHA256 zip adalah F59F684D…E92B7A, ukuran 2598 byte. Nilai ini sama dengan digest yang dicetak job
+  log (f59f684d…92b7a), jadi zip yang saya baca adalah artifact yang di-upload.
+  - COMMIT_SHA=11761d3b04b54d7b8fd19105547da2154c130dd8 dan RUN_ID=40861368934, sesuai rencana.
+  - SCRIPT_SHA256=bb62f5db…a106a dan WORKFLOW_SHA256=846a5cd8…54b5e5, sama dengan hash isi ter-commit
+  dari langkah 1.
+  - Artifact berisi 4 file, sesuai prediksi: experiment-01.log, old-insert-after-rename.log,
+  old-query-after-rename.log, runner-rig.log. Tidak ada sisa file run lama.
+  - Metadata run: TRIGGERED_BY=nabielss, REVIEWED_BY=Nabiel, SELECTED_SCENARIO=both, PostgreSQL 16.15,
+  SCRIPT_EXIT_STATUS=0.
+  - Log job memuat digest image postgres:16 (sha256:1beaa308…c61c). Digest itu tidak ada di artifact,
+  hanya di log job.
+
+  Prediksi vs hasil
+
+  - Identik dengan Run 03: semua assertion lama sama, termasuk nilai <10.00>, <10.00:EUR>,
+  <1:EUR,2:IDR,3:USD>, <EUR>, <60.00> dan hitungan 0/1/1/0.
+  - Baru, sesuai prediksi: old_insert_before_rename value=<40.00>, lalu error column "amount" of
+  relation "invoices" does not exist dengan caret di kolom amount, lalu
+  old_insert_after_rename=missing_column_error.
+  - Hal yang saya curigai: tidak ada yang terjadi.
+
+  (i) Yang dibuktikan
+
+  Semua RAN, oleh GitHub Actions yang Anda picu, pada PG 16.15 dengan data sintetis dan tanpa
+  konkurensi.
+
+  1. Setelah RENAME COLUMN amount TO total_amount, INSERT yang memakai amount gagal. Sebelum rename,
+  INSERT yang sama berhasil (40.00), jadi kegagalannya disebabkan oleh rename, bukan fixture. Ini
+  menambah alasan penolakan: pod lama gagal menulis, tidak hanya gagal membaca.
+  2. Server log Postgres hanya mencatat dua ERROR: SELECT amount dan INSERT … (5, 'DE', 50.00). Itu
+  cocok dengan dua assertion "harus gagal". Server tidak mencatat kegagalan lain.
+  3. down() dengan DROP COLUMN currency menghapus nilai currency, termasuk override id3=EUR.
+  Constraint amount_nonneg tetap ada dan invoices_currency_idx hilang (1 → 0), sama dengan Run 03.
+  4. Migration up() berhasil dan menghasilkan 10.00:EUR pada baris dengan country='DE'.
+
+  (ii) Yang menguatkan atau mengubah baseline
+
+  - Menguatkan: semua hasil Run 03 terulang persis. Itu menunjukkan hasilnya deterministik pada rig
+  ini.
+  - Baru: satu klaim dari daftar NOT RUN, "INSERT pod lama setelah rename", sekarang RAN pada skala
+  kecil. Verdict TOLAK tetap, dengan dasar kerusakan logis yang sekarang lebih kuat.
+  - Tidak berubah: daftar NOT RUN yang lain.
+  - Mengonfirmasi review sebelumnya: log job menunjukkan persist-credentials: true (catatan d belum
+  diterapkan). Catatan (a) dan (c) juga belum.
+
+  (iii) Yang belum dibuktikan
+
+  - Lock dan blocking INSERT di skala besar. NOT RUN.
+  - Durasi backfill, WAL, dan replica lag. NOT RUN.
+  - Perilaku pod lama saat rolling deploy 5 menit (urutan sebenarnya, retry, error rate). NOT RUN. Run
+  04 hanya menunjukkan bahwa satu INSERT lama gagal setelah rename.
+  - Mode transaksi runner production dan versi PG production. NOT RUN / TIDAK TERVERIFIKASI.
+  - Pemetaan ELSE 'USD' terhadap data nyata. NOT RUN. Baris id=4 ikut di-UPDATE (UPDATE 4), tetapi
+  currency-nya tidak di-assert.
+  - Durasi 1,2 detik di runner ini tidak bisa dibandingkan dengan klaim "1,8 s di staging". Fixture
+  hanya 3–4 baris.
+
+  Catatan kecil
+
+  - ASSERTION_PASS ditulis script hanya setelah assert_eq membandingkan nilai aktual dengan nilai yang
+  diharapkan, jadi nilai di dalam value=<…> adalah bukti. Baris ASSERTION_BATCH_COMPLETE bukan bukti
+  dan bukan persetujuan.
+  - Zip asli ada di C:\Users\ss\Downloads. Hasil ekstraksi saya ada di folder temp di luar repo. Belum
+  ada file di repo yang berubah. Kalau Anda setuju, saya bisa menyalin zip itu ke
+  evidence/experiment-01/40861368934/original-artifact.zip, mengekstraknya ke received-extract/, dan
+  menunjukkan diff-nya dulu sebelum apa pun di-commit.
+
+  Experiment 02
+
+  Hasil Run 04 tidak mengubah review Experiment 02. Statusnya tetap NO-GO sampai perbaikan #1, #2, #3,
+  dan #5 di laporan sebelumnya selesai. Perbaikan itu belum saya kerjakan.
+
+
+=============================================================================================================
+Perihal: tinjau [script Experiment 02](E:/1-learning/SS_weekly-training-critical-thinking/bielsandbox/week4-challenge4/scripts/experiment-02-lock.sh) dan [workflow CI barunya](E:/1-learning/SS_weekly-training-critical-thinking/bielsandbox/week4-challenge4/.github/workflows/week4-experiment-02.yml),
+
+Hasil bacaan:
+ Review Experiment 02 (script dan workflow baru)
+
+  Ini hanya review kode di commit 11761d3b04b54d7b8fd19105547da2154c130dd8. Tidak ada yang dijalankan,
+  dan tidak ada file yang saya ubah.
+
+  Hash isi ter-commit:
+
+  - experiment-02-lock.sh = 70d2578f4c45db98018a06bfe69c2ddcfb27d30312b6794e364e5f13b9b3e466
+  - week4-experiment-02.yml = 6b58d2dbd087bcc60869ea27c2396fe8da61c7a5465901386d2cf6854518cee1
+
+  Rekomendasi: NO-GO untuk run pertama. Dua kekurangan tinggi dan empat sedang perlu diperbaiki lebih
+  dulu. Kerangka dasarnya sudah baik.
+
+  Yang sudah sesuai
+
+  ┌──────────────────────────────┬─────────────────────────────────────────────────────────────────┐
+  │ Aspek                        │ Bukti di kode                                                   │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Dua sesi + observer terpisah │ Writer, migration, dan observer berjalan sebagai proses psql    │
+  │                              │ terpisah dengan PGAPPNAME berbeda (script:185, 254, observer di │
+  │                              │ run_mode).                                                      │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Positive control observer    │ run_lock_positive_control (sekitar baris 80–155): holder ACCESS │
+  │                              │ EXCLUSIVE selama 2 detik, writer dengan lock_timeout=250ms,     │
+  │                              │ observer harus mencetak                                         │
+  │                              │ LOCK_WAIT\|app=week4-lock-control-writer (script:149). Tanpa    │
+  │                              │ itu, hasil "0 sampel" tidak bisa dipercaya.                     │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Pengamatan lock              │ Query observer join pg_stat_activity dan pg_locks dengan NOT    │
+  │                              │ l.granted (script:65–72), dan mencetak wait_event_type,         │
+  │                              │ wait_event, mode, serta pg_blocking_pids.                       │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Migration dua mode eksplisit │ make_migration_sql (script:157) membuat mode transaction        │
+  │                              │ (dengan BEGIN/COMMIT) dan mode autocommit. Perilaku runner      │
+  │                              │ production dilabeli UNKNOWN (script:26).                        │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Batas ukuran                 │ generate_series(1, 100000) (script:52) adalah konstanta tetap.  │
+  │                              │ Workflow tidak punya inputs selain reviewed_by, jadi ukuran     │
+  │                              │ tidak bisa dibengkakkan lewat dispatch. UPDATE pada 100k baris  │
+  │                              │ menghasilkan puluhan MB, jauh di bawah ±13 GB.                  │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Timeout                      │ timeout 180s untuk migration (script:254) dan timeout-minutes:  │
+  │                              │ 10 untuk job (yml:18).                                          │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Pembersihan artifact         │ Output ditulis ke artifacts/<run_id>-<attempt>/ (yml:40). Hanya │
+  │                              │ subfolder itu yang di-upload (yml:99), dan script menolak       │
+  │                              │ RUN_ARTIFACT_DIR di luar $GITHUB_WORKSPACE/artifacts/           │
+  │                              │ (script:8). Ini lebih baik daripada Experiment 01.              │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Provenance                   │ Commit SHA, run id, hash script dan workflow, CPU, memori, df,  │
+  │                              │ docker image inspect (yml:77) yang mencatat image ID dan        │
+  │                              │ digest, serta REVIEWED_BY.                                      │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Pelabelan skala              │ not an 800 inserts/s benchmark (script:27),                     │
+  │                              │ SAFETY_GUARD=environment check only (script:28), dan            │
+  │                              │ scale_up=NOT_RUN (script:295).                                  │
+  ├──────────────────────────────┼─────────────────────────────────────────────────────────────────┤
+  │ Konsistensi baris            │ all_rows_accounted_for_<mode> memeriksa 100000 + inserted       │
+  │                              │ (script:282).                                                   │
+  └──────────────────────────────┴─────────────────────────────────────────────────────────────────┘
+
+  Kekurangan sebelum run pertama
+
+  ┌─────┬──────────┬───────────────────────────────────────────────────────┬──────────────────────┐
+  │ #   │ Severity │ Temuan                                                │ Perbaikan            │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 1   │ Tinggi   │ Kriteria "prediksi salah jika…" khusus Exp 02 belum   │ Tulis dan commit     │
+  │     │          │ ditulis. Satu-satunya yang ada (Baseline-User.md:16)  │ kriteria sebelum     │
+  │     │          │ ditulis untuk 20–50 juta baris dan 800 TPS, bukan     │ run. Contoh: "Salah  │
+  │     │          │ fixture 100k dengan 25 percobaan.                     │ jika di mode         │
+  │     │          │                                                       │ transaksi tidak ada  │
+  │     │          │                                                       │ satu pun             │
+  │     │          │                                                       │ LOCK_TIMEOUT dan     │
+  │     │          │                                                       │ observer 0 sampel."  │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 2   │ Tinggi   │ "Durasi blok INSERT" tidak terukur.                   │ Catat elapsed_ms per │
+  │     │          │ lock_timeout=250ms (script:185) memotong setiap       │ percobaan. Tambahkan │
+  │     │          │ tunggu di 250 ms, dan log hanya mencatat waktu        │ satu writer tanpa    │
+  │     │          │ selesai (script:198), bukan durasi. Durasi blok       │ lock_timeout dengan  │
+  │     │          │ sebenarnya tidak bisa dibaca.                         │ statement_timeout    │
+  │     │          │                                                       │ pendek (mis. 5 s)    │
+  │     │          │                                                       │ untuk melihat waktu  │
+  │     │          │                                                       │ tunggu nyata.        │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 3   │ Sedang   │ Race backfill tidak dicek. Di mode autocommit, baris  │ Setelah migration,   │
+  │     │          │ yang di-INSERT writer lama setelah ADD COLUMN tetapi  │ hitung baris         │
+  │     │          │ sebelum UPDATE selesai bisa tetap USD meski           │ country='DE' AND     │
+  │     │          │ country='DE'. Script tidak menghitung baris seperti   │ currency<>'EUR' per  │
+  │     │          │ itu, padahal pemetaan ELSE 'USD' (script:167) masih   │ mode.                │
+  │     │          │ NOT RUN.                                              │                      │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 4   │ Sedang   │ Observer tidak memfilter wait_event_type='Lock'. Ia   │ Tambahkan            │
+  │     │          │ hanya memakai NOT l.granted. Nilainya dicetak, jadi   │ a.wait_event_type='L │
+  │     │          │ masih bisa diaudit.                                   │ ock' ke WHERE.       │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 5   │ Sedang   │ \watch interval=0.1 count=100 (script:75) memakai     │ Cetak psql           │
+  │     │          │ sintaks psql baru yang belum saya verifikasi di psql  │ --version. Pindahkan │
+  │     │          │ runner. Versi client psql tidak dicatat di rig log.   │ cat sebelum wait,    │
+  │     │          │ Kalau observer gagal, wait tanpa \|\| true di         │ atau pakai wait …    │
+  │     │          │ script:147 dan 260 mengabort script di bawah set -e.  │ \|\| true lalu       │
+  │     │          │ Di bagian control, cat "$observer_log" (script:148)   │ periksa statusnya    │
+  │     │          │ berada setelah wait, jadi log observer tidak muncul   │ sendiri.             │
+  │     │          │ di experiment-02.log.                                 │                      │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 6   │ Sedang   │ Tidak ada assertion bahwa kontensi benar-benar        │ Boleh tetap jadi     │
+  │     │          │ terjadi. OBSERVER_LOCK_SAMPLE_COUNT hanya dicetak.    │ data jika kriteria   │
+  │     │          │ Pada 100k baris, migration mungkin selesai dalam      │ #1 menyebutnya.      │
+  │     │          │ kurang dari 1 detik, dan jendela writer (25 × ±0,1 s) │ Pertimbangkan lebih  │
+  │     │          │ bisa terlewat.                                        │ banyak percobaan.    │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 7   │ Rendah   │ Migration tidak byte-identik dengan challenge.        │ Catat di script      │
+  │     │          │ Statement dipisah dan disisipi \timing serta SELECT   │ bahwa ini ekuivalen. │
+  │     │          │ clock_timestamp(). Semantik sama.                     │                      │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 8   │ Rendah   │ Hanya satu writer berurutan, tanpa reader di replica  │ Sudah dilabeli.      │
+  │     │          │ dan tanpa 6 pod paralel.                              │ Jangan ekstrapolasi  │
+  │     │          │                                                       │ ke 800/s atau 120M   │
+  │     │          │                                                       │ baris.               │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 9   │ Rendah   │ Checkout tanpa persist-credentials: false (yml:42).   │ Perbaiki bersama     │
+  │     │          │ Nama ASSERTION_BATCH_COMPLETE (script:295) bisa       │ Experiment 01.       │
+  │     │          │ terbaca sebagai persetujuan. postgres:16 hanya dipin  │                      │
+  │     │          │ ke versi mayor (yml:21).                              │                      │
+  ├─────┼──────────┼───────────────────────────────────────────────────────┼──────────────────────┤
+  │ 10  │ Rendah   │ Tidak ada gate disk di dalam script. Aman pada 100k   │ Tambahkan batas atas │
+  │     │          │ karena ukuran konstan.                                │ dan cek df kalau     │
+  │     │          │                                                       │ nanti                │
+  │     │          │                                                       │ diparameterisasi     │
+  │     │          │                                                       │ atau di-scale-up.    │
+  └─────┴──────────┴───────────────────────────────────────────────────────┴──────────────────────┘
+
+  Status label bukti
+
+  - NOT RUN: seluruh Experiment 02 (belum pernah dijalankan).
+  - TIDAK TERVERIFIKASI: bahwa observer benar-benar melihat lock, bahwa sintaks \watch didukung psql
+  runner, dan bahwa jendela writer tumpang tindih dengan migration.
+  - Apa pun hasil Exp 02 nanti hanya berlaku untuk fixture 100k baris, PG 16.15, dengan satu writer
+  berurutan. Hasil itu bukan ekstrapolasi otomatis ke 120M baris.
+
+  Daftar perbaikan sebelum run pertama
+
+  1. Tulis kriteria "prediksi salah jika…" khusus Exp 02 (#1).
+  2. Catat durasi per percobaan dan tambahkan writer tanpa lock_timeout (#2).
+  3. Tambahkan cek baris DE yang tidak menjadi EUR (#3).
+  4. Cetak psql --version, pindahkan cat observer, dan tangani kegagalan wait (#5).
+  5. Tambahkan filter wait_event_type='Lock' (#4) dan pertimbangkan #6.
+
+  Saya belum mengubah apa pun. Kalau Anda setuju, saya bisa menyiapkan diff untuk perbaikan 1–4 dan
+  menampilkannya dulu sebelum ada yang di-commit.
+
+Hasil run GitHub Actions:
+2026-10-29T10:58:48.2625682Z Current runner version: '2.338.0'
+2026-10-29T10:58:48.2654217Z ##[group]Runner Image Provisioner
+2026-10-29T10:58:48.2655337Z Hosted Compute Agent
+2026-10-29T10:58:48.2656116Z Version: 20261021.618
+2026-10-29T10:58:48.2657067Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-29T10:58:48.2657985Z Build Date: 2026-10-21T00:45:21Z
+2026-10-29T10:58:48.2659075Z Worker ID: {b1223b9f-4929-49cc-93eb-a186404ecdd8}
+2026-10-29T10:58:48.2659976Z Region: westus3
+2026-10-29T10:58:48.2660685Z Cloud: Azure
+2026-10-29T10:58:48.2661412Z ##[endgroup]
+2026-10-29T10:58:48.2663141Z ##[group]Operating System
+2026-10-29T10:58:48.2663916Z Ubuntu
+2026-10-29T10:58:48.2664702Z 24.04.5
+2026-10-29T10:58:48.2665415Z LTS
+2026-10-29T10:58:48.2666201Z ##[endgroup]
+2026-10-29T10:58:48.2666921Z ##[group]Runner Image
+2026-10-29T10:58:48.2667665Z Image: ubuntu-24.04
+2026-10-29T10:58:48.2668453Z Version: 20261025.353.1
+2026-10-29T10:58:48.2670388Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261025.353/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-29T10:58:48.2672528Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261025.353
+2026-10-29T10:58:48.2673700Z ##[endgroup]
+2026-10-29T10:58:48.2675702Z ##[group]GITHUB_TOKEN Permissions
+2026-10-29T10:58:48.2677746Z Contents: read
+2026-10-29T10:58:48.2678578Z Metadata: read
+2026-10-29T10:58:48.2679438Z ##[endgroup]
+2026-10-29T10:58:48.2681919Z Secret source: Actions
+2026-10-29T10:58:48.2683167Z Cache mode: write
+2026-10-29T10:58:48.2684108Z Prepare workflow directory
+2026-10-29T10:58:48.3584354Z Prepare all required actions
+2026-10-29T10:58:48.3694390Z Getting action download info
+2026-10-29T10:58:48.7205785Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-10-29T10:58:48.8714090Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-10-29T10:58:49.1179833Z Complete job name: Measure bounded writer and lock behavior (not a production benchmark)
+2026-10-29T10:58:49.1608260Z ##[group]Checking docker version
+2026-10-29T10:58:49.1618595Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-10-29T10:58:49.2908128Z '1.48'
+2026-10-29T10:58:49.2934263Z Docker daemon API version: '1.48'
+2026-10-29T10:58:49.2935103Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-10-29T10:58:49.3216375Z '1.48'
+2026-10-29T10:58:49.3220727Z Docker client API version: '1.48'
+2026-10-29T10:58:49.3225886Z ##[endgroup]
+2026-10-29T10:58:49.3229462Z ##[group]Clean up resources from previous jobs
+2026-10-29T10:58:49.3235485Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=3e06b6"
+2026-10-29T10:58:49.3515089Z ##[command]/usr/bin/docker network prune --force --filter "label=3e06b6"
+2026-10-29T10:58:49.3717503Z ##[endgroup]
+2026-10-29T10:58:49.3718121Z ##[group]Create local container network
+2026-10-29T10:58:49.3726585Z ##[command]/usr/bin/docker network create --label 3e06b6 github_network_1dd1e64ca08b4149b8cae3a511ce3ab5
+2026-10-29T10:58:49.6551479Z f3f9e214792d5877f7876df0a1dbf4f27833d389d97ed18cb5cf5abd5328f967
+2026-10-29T10:58:49.6560925Z ##[endgroup]
+2026-10-29T10:58:49.6593289Z ##[group]Starting postgres service container
+2026-10-29T10:58:49.6616804Z ##[command]/usr/bin/docker pull postgres:16
+2026-10-29T10:58:50.6205914Z 16: Pulling from library/postgres
+2026-10-29T10:58:50.9057254Z 6fc242d221a6: Pulling fs layer
+2026-10-29T10:58:50.9057749Z d06edb2e3f43: Pulling fs layer
+2026-10-29T10:58:50.9058093Z 3795839385bc: Pulling fs layer
+2026-10-29T10:58:50.9058428Z cea4f0db46a6: Pulling fs layer
+2026-10-29T10:58:50.9058942Z 9b1a18996a22: Pulling fs layer
+2026-10-29T10:58:50.9059270Z fbc84e711712: Pulling fs layer
+2026-10-29T10:58:50.9059637Z 879995175298: Pulling fs layer
+2026-10-29T10:58:50.9059998Z d89068781d71: Pulling fs layer
+2026-10-29T10:58:50.9060348Z 5c4d204f6daa: Pulling fs layer
+2026-10-29T10:58:50.9060754Z 28d8a96df569: Pulling fs layer
+2026-10-29T10:58:50.9061759Z b355a8fcc1d3: Pulling fs layer
+2026-10-29T10:58:50.9062199Z dc3e98153fd4: Pulling fs layer
+2026-10-29T10:58:50.9062584Z c60d02d02e9b: Pulling fs layer
+2026-10-29T10:58:50.9062944Z 7ee6ed8de1c8: Pulling fs layer
+2026-10-29T10:58:50.9073579Z cea4f0db46a6: Waiting
+2026-10-29T10:58:50.9073953Z 9b1a18996a22: Waiting
+2026-10-29T10:58:50.9074280Z fbc84e711712: Waiting
+2026-10-29T10:58:50.9074588Z 879995175298: Waiting
+2026-10-29T10:58:50.9074900Z d89068781d71: Waiting
+2026-10-29T10:58:50.9075202Z 5c4d204f6daa: Waiting
+2026-10-29T10:58:50.9075520Z 28d8a96df569: Waiting
+2026-10-29T10:58:50.9075839Z b355a8fcc1d3: Waiting
+2026-10-29T10:58:50.9076142Z dc3e98153fd4: Waiting
+2026-10-29T10:58:50.9076460Z c60d02d02e9b: Waiting
+2026-10-29T10:58:50.9076786Z 7ee6ed8de1c8: Waiting
+2026-10-29T10:58:51.0794483Z d06edb2e3f43: Verifying Checksum
+2026-10-29T10:58:51.0795328Z d06edb2e3f43: Download complete
+2026-10-29T10:58:51.1073103Z 3795839385bc: Verifying Checksum
+2026-10-29T10:58:51.1074635Z 3795839385bc: Download complete
+2026-10-29T10:58:51.1902690Z 6fc242d221a6: Verifying Checksum
+2026-10-29T10:58:51.1910555Z 6fc242d221a6: Download complete
+2026-10-29T10:58:51.2552591Z cea4f0db46a6: Verifying Checksum
+2026-10-29T10:58:51.2559809Z cea4f0db46a6: Download complete
+2026-10-29T10:58:51.3151573Z 9b1a18996a22: Verifying Checksum
+2026-10-29T10:58:51.3160744Z 9b1a18996a22: Download complete
+2026-10-29T10:58:51.3743230Z fbc84e711712: Verifying Checksum
+2026-10-29T10:58:51.3744815Z fbc84e711712: Download complete
+2026-10-29T10:58:51.4361121Z 879995175298: Verifying Checksum
+2026-10-29T10:58:51.4361940Z 879995175298: Download complete
+2026-10-29T10:58:51.4847697Z d89068781d71: Verifying Checksum
+2026-10-29T10:58:51.4851111Z d89068781d71: Download complete
+2026-10-29T10:58:51.6190600Z 28d8a96df569: Verifying Checksum
+2026-10-29T10:58:51.6199888Z 28d8a96df569: Download complete
+2026-10-29T10:58:51.6613666Z b355a8fcc1d3: Verifying Checksum
+2026-10-29T10:58:51.6630029Z b355a8fcc1d3: Download complete
+2026-10-29T10:58:51.8126192Z dc3e98153fd4: Verifying Checksum
+2026-10-29T10:58:51.8139977Z dc3e98153fd4: Download complete
+2026-10-29T10:58:51.8537340Z c60d02d02e9b: Verifying Checksum
+2026-10-29T10:58:51.8552862Z c60d02d02e9b: Download complete
+2026-10-29T10:58:51.9380816Z 5c4d204f6daa: Verifying Checksum
+2026-10-29T10:58:51.9399669Z 5c4d204f6daa: Download complete
+2026-10-29T10:58:52.0100709Z 7ee6ed8de1c8: Verifying Checksum
+2026-10-29T10:58:52.0101496Z 7ee6ed8de1c8: Download complete
+2026-10-29T10:58:52.3063139Z 6fc242d221a6: Pull complete
+2026-10-29T10:58:54.8574959Z d06edb2e3f43: Pull complete
+2026-10-29T10:58:55.2098410Z 3795839385bc: Pull complete
+2026-10-29T10:58:55.2891315Z cea4f0db46a6: Pull complete
+2026-10-29T10:58:56.2510426Z 9b1a18996a22: Pull complete
+2026-10-29T10:58:56.3878927Z fbc84e711712: Pull complete
+2026-10-29T10:58:56.3998594Z 879995175298: Pull complete
+2026-10-29T10:58:56.4179956Z d89068781d71: Pull complete
+2026-10-29T10:59:02.2455198Z 5c4d204f6daa: Pull complete
+2026-10-29T10:59:02.2731143Z 28d8a96df569: Pull complete
+2026-10-29T10:59:02.2876594Z b355a8fcc1d3: Pull complete
+2026-10-29T10:59:02.6094984Z dc3e98153fd4: Pull complete
+2026-10-29T10:59:02.6229732Z c60d02d02e9b: Pull complete
+2026-10-29T10:59:02.6353124Z 7ee6ed8de1c8: Pull complete
+2026-10-29T10:59:02.6391713Z Digest: sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+2026-10-29T10:59:02.6407173Z Status: Downloaded newer image for postgres:16
+2026-10-29T10:59:02.6416146Z docker.io/library/postgres:16
+2026-10-29T10:59:02.6477821Z ##[command]/usr/bin/docker create --name ac8fb59f7f3a405782841244ce79516c_postgres16_e9395c --label 3e06b6 --network github_network_1dd1e64ca08b4149b8cae3a511ce3ab5 --network-alias postgres -p 5432:5432 --health-cmd "pg_isready -U ci -d week4" --health-interval 5s --health-timeout 5s --health-retries 12 -e "POSTGRES_USER=ci" -e "POSTGRES_PASSWORD=synthetic-only" -e "POSTGRES_DB=week4" -e GITHUB_ACTIONS=true -e CI=true postgres:16
+2026-10-29T10:59:02.6814647Z 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:02.6837544Z ##[command]/usr/bin/docker start 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:03.0437799Z 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:03.0462591Z ##[command]/usr/bin/docker ps --all --filter id=02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-10-29T10:59:03.0646939Z 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d Up Less than a second (health: starting)
+2026-10-29T10:59:03.0673486Z ##[command]/usr/bin/docker port 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:03.0863183Z 5432/tcp -> 0.0.0.0:5432
+2026-10-29T10:59:03.0878285Z 5432/tcp -> [::]:5432
+2026-10-29T10:59:03.0918513Z ##[endgroup]
+2026-10-29T10:59:03.0928850Z ##[group]Waiting for all services to be ready
+2026-10-29T10:59:03.0943942Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:03.1128290Z starting
+2026-10-29T10:59:03.1157144Z postgres service is starting, waiting 2 seconds before checking again.
+2026-10-29T10:59:05.1155776Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:05.1291067Z starting
+2026-10-29T10:59:05.1305513Z postgres service is starting, waiting 4 seconds before checking again.
+2026-10-29T10:59:09.3371388Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:09.3514066Z healthy
+2026-10-29T10:59:09.3535168Z postgres service is healthy.
+2026-10-29T10:59:09.3535855Z ##[endgroup]
+2026-10-29T10:59:09.3752325Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-10-29T10:59:09.3752868Z with:
+2026-10-29T10:59:09.3753074Z   repository: nabielss/sscriticalai-week4
+2026-10-29T10:59:09.3755373Z   token: ***
+2026-10-29T10:59:09.3755550Z   ssh-strict: true
+2026-10-29T10:59:09.3755723Z   ssh-user: git
+2026-10-29T10:59:09.3755896Z   persist-credentials: true
+2026-10-29T10:59:09.3756097Z   clean: true
+2026-10-29T10:59:09.3756277Z   sparse-checkout-cone-mode: true
+2026-10-29T10:59:09.3756487Z   fetch-depth: 1
+2026-10-29T10:59:09.3756650Z   fetch-tags: false
+2026-10-29T10:59:09.3756818Z   show-progress: true
+2026-10-29T10:59:09.3756988Z   lfs: false
+2026-10-29T10:59:09.3757144Z   submodules: false
+2026-10-29T10:59:09.3757316Z   set-safe-directory: true
+2026-10-29T10:59:09.3757517Z   allow-unsafe-pr-checkout: false
+2026-10-29T10:59:09.3757857Z env:
+2026-10-29T10:59:09.3758017Z   PGHOST: 127.0.0.1
+2026-10-29T10:59:09.3758188Z   PGPORT: 5432
+2026-10-29T10:59:09.3758401Z   PGUSER: ci
+2026-10-29T10:59:09.3758574Z   PGPASSWORD: synthetic-only
+2026-10-29T10:59:09.3758916Z   PGDATABASE: week4
+2026-10-29T10:59:09.3759083Z   REVIEWED_BY: Nabiel
+2026-10-29T10:59:09.3759420Z   RUN_ARTIFACT_DIR: /home/runner/work/sscriticalai-week4/sscriticalai-week4/artifacts/40861765376-1
+2026-10-29T10:59:09.3759793Z ##[endgroup]
+2026-10-29T10:59:09.5869986Z Syncing repository: nabielss/sscriticalai-week4
+2026-10-29T10:59:09.5871822Z ##[group]Getting Git version info
+2026-10-29T10:59:09.5872384Z Working directory is '/home/runner/work/sscriticalai-week4/sscriticalai-week4'
+2026-10-29T10:59:09.5873201Z [command]/usr/bin/git version
+2026-10-29T10:59:09.6079795Z git version 2.56.0
+2026-10-29T10:59:09.6133027Z ##[endgroup]
+2026-10-29T10:59:09.6141358Z Temporarily overriding HOME='/home/runner/work/_temp/32ace08a-03b5-4a51-adde-86e63177c4e4' before making global git config changes
+2026-10-29T10:59:09.6149380Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T10:59:09.6150542Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sscriticalai-week4/sscriticalai-week4
+2026-10-29T10:59:09.6208423Z Deleting the contents of '/home/runner/work/sscriticalai-week4/sscriticalai-week4'
+2026-10-29T10:59:09.6222122Z ##[group]Determining repository object format
+2026-10-29T10:59:09.6223227Z ##[endgroup]
+2026-10-29T10:59:09.6223970Z ##[group]Initializing the repository
+2026-10-29T10:59:09.6252670Z [command]/usr/bin/git init /home/runner/work/sscriticalai-week4/sscriticalai-week4
+2026-10-29T10:59:09.6363754Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-29T10:59:09.6368152Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-29T10:59:09.6368985Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-29T10:59:09.6369476Z hint: call:
+2026-10-29T10:59:09.6369717Z hint:
+2026-10-29T10:59:09.6370093Z hint: 	git config --global init.defaultBranch <name>
+2026-10-29T10:59:09.6370544Z hint:
+2026-10-29T10:59:09.6370917Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-29T10:59:09.6371556Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-29T10:59:09.6372022Z hint:
+2026-10-29T10:59:09.6372266Z hint: 	git branch -m <name>
+2026-10-29T10:59:09.6372548Z hint:
+2026-10-29T10:59:09.6372955Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-29T10:59:09.6388813Z Initialized empty Git repository in /home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/
+2026-10-29T10:59:09.6422187Z [command]/usr/bin/git remote add origin https://github.com/nabielss/sscriticalai-week4
+2026-10-29T10:59:09.6450101Z ##[endgroup]
+2026-10-29T10:59:09.6450762Z ##[group]Disabling automatic garbage collection
+2026-10-29T10:59:09.6472929Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-29T10:59:09.6561886Z ##[endgroup]
+2026-10-29T10:59:09.6588428Z ##[group]Setting up auth
+2026-10-29T10:59:09.6599912Z Removing SSH command configuration
+2026-10-29T10:59:09.6600698Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T10:59:09.6602698Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T10:59:09.7067590Z Removing HTTP extra header
+2026-10-29T10:59:09.7068504Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T10:59:09.7097366Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T10:59:09.7341138Z Removing includeIf entries pointing to credentials config files
+2026-10-29T10:59:09.7345352Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T10:59:09.7396265Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T10:59:09.7636518Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-29T10:59:09.7683345Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path /home/runner/work/_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config
+2026-10-29T10:59:09.7723182Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config
+2026-10-29T10:59:09.7763890Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config
+2026-10-29T10:59:09.7811894Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config
+2026-10-29T10:59:09.7847558Z ##[endgroup]
+2026-10-29T10:59:09.7848443Z ##[group]Fetching the repository
+2026-10-29T10:59:09.7855916Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +11761d3b04b54d7b8fd19105547da2154c130dd8:refs/remotes/origin/main
+2026-10-29T10:59:10.4127989Z From https://github.com/nabielss/sscriticalai-week4
+2026-10-29T10:59:10.4128411Z  * [new ref]         11761d3b04b54d7b8fd19105547da2154c130dd8 -> origin/main
+2026-10-29T10:59:10.4130146Z [command]/usr/bin/git branch --list --remote origin/main
+2026-10-29T10:59:10.4166476Z   origin/main
+2026-10-29T10:59:10.4189958Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2026-10-29T10:59:10.4205280Z 11761d3b04b54d7b8fd19105547da2154c130dd8
+2026-10-29T10:59:10.4210087Z ##[endgroup]
+2026-10-29T10:59:10.4210687Z ##[group]Determining the checkout info
+2026-10-29T10:59:10.4211392Z ##[endgroup]
+2026-10-29T10:59:10.4214473Z [command]/usr/bin/git sparse-checkout disable
+2026-10-29T10:59:10.4277328Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-29T10:59:10.4318344Z ##[group]Checking out the ref
+2026-10-29T10:59:10.4323073Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-29T10:59:10.4413270Z Switched to a new branch 'main'
+2026-10-29T10:59:10.4419106Z branch 'main' set up to track 'origin/main'.
+2026-10-29T10:59:10.4424931Z ##[endgroup]
+2026-10-29T10:59:10.4490287Z [command]/usr/bin/git log -1 --format=%H
+2026-10-29T10:59:10.4521810Z 11761d3b04b54d7b8fd19105547da2154c130dd8
+2026-10-29T10:59:10.4720942Z ##[group]Run set -euo pipefail
+2026-10-29T10:59:10.4721272Z [36;1mset -euo pipefail[0m
+2026-10-29T10:59:10.4721510Z [36;1mmkdir -p "$RUN_ARTIFACT_DIR"[0m
+2026-10-29T10:59:10.4721738Z [36;1m{[0m
+2026-10-29T10:59:10.4721976Z [36;1m  reviewed_by=$(printf '%s' "$REVIEWED_BY" | tr '\r\n' '  ')[0m
+2026-10-29T10:59:10.4722334Z [36;1m  if ! grep -q '[^[:space:]]' <<<"$reviewed_by"; then[0m
+2026-10-29T10:59:10.4722602Z [36;1m    echo 'REVIEWED_BY is required' >&2[0m
+2026-10-29T10:59:10.4722828Z [36;1m    exit 1[0m
+2026-10-29T10:59:10.4722991Z [36;1m  fi[0m
+2026-10-29T10:59:10.4723165Z [36;1m  echo "COMMIT_SHA=$GITHUB_SHA"[0m
+2026-10-29T10:59:10.4723389Z [36;1m  echo "RUN_ID=$GITHUB_RUN_ID"[0m
+2026-10-29T10:59:10.4723620Z [36;1m  echo "RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT"[0m
+2026-10-29T10:59:10.4723976Z [36;1m  echo "RUN_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"[0m
+2026-10-29T10:59:10.4724373Z [36;1m  echo "DATE_TIME_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"[0m
+2026-10-29T10:59:10.4724646Z [36;1m  echo 'WORKFLOW_TIMEOUT_MINUTES=10'[0m
+2026-10-29T10:59:10.4724995Z [36;1m  echo 'ACTIONS_ACCOUNT_QUOTA=UNKNOWN; billing access is not granted to this workflow'[0m
+2026-10-29T10:59:10.4725355Z [36;1m  echo "SCRIPT_AUTHOR=Codex (AI assistant)"[0m
+2026-10-29T10:59:10.4725611Z [36;1m  echo "TRIGGERED_BY=$GITHUB_ACTOR"[0m
+2026-10-29T10:59:10.4725890Z [36;1m  echo "EXECUTED_ON=$RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"[0m
+2026-10-29T10:59:10.4726184Z [36;1m  printf 'REVIEWED_BY=%s\n' "$reviewed_by"[0m
+2026-10-29T10:59:10.4726451Z [36;1m  echo 'MANUAL_CHECK=POST_RUN_REVIEW_PENDING'[0m
+2026-10-29T10:59:10.4726783Z [36;1m  echo 'DATA=100000 deterministic synthetic invoices; no external data'[0m
+2026-10-29T10:59:10.4727196Z [36;1m  echo 'SEED=generate_series(1,100000); deterministic DE/ID/US pattern and amount'[0m
+2026-10-29T10:59:10.4727582Z [36;1m  echo 'COMMAND=bash scripts/experiment-02-lock.sh'[0m
+2026-10-29T10:59:10.4727954Z [36;1m  echo "SCRIPT_SHA256=$(sha256sum scripts/experiment-02-lock.sh | cut -d' ' -f1)"[0m
+2026-10-29T10:59:10.4728426Z [36;1m  echo "WORKFLOW_SHA256=$(sha256sum .github/workflows/week4-experiment-02.yml | cut -d' ' -f1)"[0m
+2026-10-29T10:59:10.4728996Z [36;1m  echo "CPU_COUNT=$(nproc)"[0m
+2026-10-29T10:59:10.4729221Z [36;1m  echo 'MEMORY:'[0m
+2026-10-29T10:59:10.4729631Z [36;1m  grep -E 'MemTotal|MemAvailable' /proc/meminfo[0m
+2026-10-29T10:59:10.4729900Z [36;1m  echo 'DISK:'[0m
+2026-10-29T10:59:10.4730091Z [36;1m  df -h "$GITHUB_WORKSPACE"[0m
+2026-10-29T10:59:10.4730315Z [36;1m  echo 'POSTGRES_IMAGE=postgres:16'[0m
+2026-10-29T10:59:10.4730785Z [36;1m  docker image inspect postgres:16 --format 'IMAGE_ID={{.Id}} REPO_DIGESTS={{json .RepoDigests}}' || echo 'POSTGRES_IMAGE_DIGEST=unavailable'[0m
+2026-10-29T10:59:10.4731272Z [36;1m  psql -X -v ON_ERROR_STOP=1 -c 'SELECT version();'[0m
+2026-10-29T10:59:10.4731559Z [36;1m} 2>&1 | tee "$RUN_ARTIFACT_DIR/runner-rig.log"[0m
+2026-10-29T10:59:10.4753564Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-29T10:59:10.4753864Z env:
+2026-10-29T10:59:10.4754029Z   PGHOST: 127.0.0.1
+2026-10-29T10:59:10.4754214Z   PGPORT: 5432
+2026-10-29T10:59:10.4754373Z   PGUSER: ci
+2026-10-29T10:59:10.4754546Z   PGPASSWORD: synthetic-only
+2026-10-29T10:59:10.4754748Z   PGDATABASE: week4
+2026-10-29T10:59:10.4754926Z   REVIEWED_BY: Nabiel
+2026-10-29T10:59:10.4755260Z   RUN_ARTIFACT_DIR: /home/runner/work/sscriticalai-week4/sscriticalai-week4/artifacts/40861765376-1
+2026-10-29T10:59:10.4755616Z ##[endgroup]
+2026-10-29T10:59:10.4885687Z COMMIT_SHA=11761d3b04b54d7b8fd19105547da2154c130dd8
+2026-10-29T10:59:10.4889291Z RUN_ID=40861765376
+2026-10-29T10:59:10.4889852Z RUN_ATTEMPT=1
+2026-10-29T10:59:10.4890494Z RUN_URL=https://github.com/nabielss/sscriticalai-week4/actions/runs/40861765376
+2026-10-29T10:59:10.4891243Z DATE_TIME_UTC=2026-10-29T10:59:10Z
+2026-10-29T10:59:10.4891766Z WORKFLOW_TIMEOUT_MINUTES=10
+2026-10-29T10:59:10.4892831Z ACTIONS_ACCOUNT_QUOTA=UNKNOWN; billing access is not granted to this workflow
+2026-10-29T10:59:10.4893548Z SCRIPT_AUTHOR=Codex (AI assistant)
+2026-10-29T10:59:10.4894033Z TRIGGERED_BY=nabielss
+2026-10-29T10:59:10.4894523Z EXECUTED_ON=GitHub Actions 1000000016 (Linux/X64)
+2026-10-29T10:59:10.4895056Z REVIEWED_BY=Nabiel
+2026-10-29T10:59:10.4895490Z MANUAL_CHECK=POST_RUN_REVIEW_PENDING
+2026-10-29T10:59:10.4896086Z DATA=100000 deterministic synthetic invoices; no external data
+2026-10-29T10:59:10.4896835Z SEED=generate_series(1,100000); deterministic DE/ID/US pattern and amount
+2026-10-29T10:59:10.4897502Z COMMAND=bash scripts/experiment-02-lock.sh
+2026-10-29T10:59:10.4919211Z SCRIPT_SHA256=70d2578f4c45db98018a06bfe69c2ddcfb27d30312b6794e364e5f13b9b3e466
+2026-10-29T10:59:10.4942709Z WORKFLOW_SHA256=6b58d2dbd087bcc60869ea27c2396fe8da61c7a5465901386d2cf6854518cee1
+2026-10-29T10:59:10.5013424Z CPU_COUNT=2
+2026-10-29T10:59:10.5014219Z MEMORY:
+2026-10-29T10:59:10.5025966Z MemTotal:        8122984 kB
+2026-10-29T10:59:10.5026541Z MemAvailable:    7155764 kB
+2026-10-29T10:59:10.5027110Z DISK:
+2026-10-29T10:59:10.5138272Z Filesystem      Size  Used Avail Use% Mounted on
+2026-10-29T10:59:10.5139254Z /dev/root        72G   60G   13G  83% /
+2026-10-29T10:59:10.5139842Z POSTGRES_IMAGE=postgres:16
+2026-10-29T10:59:10.5274204Z IMAGE_ID=sha256:74d436cb49d3398cf7b5d7b33635d43623d9e4da4b93c22db453f7d5d81181b1 REPO_DIGESTS=["postgres@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c"]
+2026-10-29T10:59:10.6552651Z                                                        version                                                        
+2026-10-29T10:59:10.6553583Z ----------------------------------------------------------------------------------------------------------------------
+2026-10-29T10:59:10.6569727Z  PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T10:59:10.6570768Z (1 row)
+2026-10-29T10:59:10.6571272Z 
+2026-10-29T10:59:10.6623297Z ##[group]Run set +e
+2026-10-29T10:59:10.6623508Z [36;1mset +e[0m
+2026-10-29T10:59:10.6623816Z [36;1mbash scripts/experiment-02-lock.sh 2>&1 | tee "$RUN_ARTIFACT_DIR/experiment-02.log"[0m
+2026-10-29T10:59:10.6624182Z [36;1mpipeline_status=("${PIPESTATUS[@]}")[0m
+2026-10-29T10:59:10.6624445Z [36;1mscript_status=${pipeline_status[0]}[0m
+2026-10-29T10:59:10.6624861Z [36;1mtee_status=${pipeline_status[1]}[0m
+2026-10-29T10:59:10.6625256Z [36;1mprintf 'SCRIPT_EXIT_STATUS=%s\n' "$script_status" | tee -a "$RUN_ARTIFACT_DIR/experiment-02.log"[0m
+2026-10-29T10:59:10.6625641Z [36;1mif [[ "$tee_status" -ne 0 ]]; then[0m
+2026-10-29T10:59:10.6625923Z [36;1m  echo 'Failed to persist the complete script output' >&2[0m
+2026-10-29T10:59:10.6626185Z [36;1m  exit 74[0m
+2026-10-29T10:59:10.6626355Z [36;1mfi[0m
+2026-10-29T10:59:10.6626520Z [36;1mexit "$script_status"[0m
+2026-10-29T10:59:10.6644779Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-10-29T10:59:10.6645096Z env:
+2026-10-29T10:59:10.6645266Z   PGHOST: 127.0.0.1
+2026-10-29T10:59:10.6645442Z   PGPORT: 5432
+2026-10-29T10:59:10.6645604Z   PGUSER: ci
+2026-10-29T10:59:10.6645776Z   PGPASSWORD: synthetic-only
+2026-10-29T10:59:10.6645975Z   PGDATABASE: week4
+2026-10-29T10:59:10.6646144Z   REVIEWED_BY: Nabiel
+2026-10-29T10:59:10.6646482Z   RUN_ARTIFACT_DIR: /home/runner/work/sscriticalai-week4/sscriticalai-week4/artifacts/40861765376-1
+2026-10-29T10:59:10.6646869Z ##[endgroup]
+2026-10-29T10:59:10.6712042Z EXPERIMENT=02 LOCK_AND_BOUNDED_WRITER_CALIBRATION
+2026-10-29T10:59:10.6712873Z DATA=100000 deterministic synthetic invoices; no external data
+2026-10-29T10:59:10.6713955Z SCOPE=transaction and per-statement-commit simulations; actual migration runner remains UNKNOWN
+2026-10-29T10:59:10.6715111Z WRITER=25 old-schema insert attempts, lock_timeout=250ms, sleep=100ms between attempts; not an 800 inserts/s benchmark
+2026-10-29T10:59:10.6716021Z SAFETY_GUARD=environment check only; not a security boundary
+2026-10-29T10:59:10.7000802Z                                                        version                                                        
+2026-10-29T10:59:10.7002049Z ----------------------------------------------------------------------------------------------------------------------
+2026-10-29T10:59:10.7003106Z  PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T10:59:10.7003899Z (1 row)
+2026-10-29T10:59:10.7004235Z 
+2026-10-29T10:59:10.7020045Z LOCK_OBSERVER_POSITIVE_CONTROL=begin
+2026-10-29T10:59:10.7314105Z NOTICE:  table "invoices" does not exist, skipping
+2026-10-29T10:59:10.7315077Z DROP TABLE
+2026-10-29T10:59:10.7493089Z CREATE TABLE
+2026-10-29T10:59:11.1630366Z INSERT 0 100000
+2026-10-29T10:59:11.2022166Z ASSERTION_PASS calibration_seed_rows value=<100000>
+2026-10-29T10:59:11.6848896Z SET
+2026-10-29T10:59:11.6849240Z ERROR:  canceling statement due to lock timeout
+2026-10-29T10:59:11.6849721Z LINE 1: SET lock_timeout = '250ms'; INSERT INTO invoices (id, countr...
+2026-10-29T10:59:11.6850130Z                                                 ^
+2026-10-29T10:59:21.1428151Z Output format is unaligned.
+2026-10-29T10:59:21.1431946Z Pager usage is off.
+2026-10-29T10:59:21.1432524Z OBSERVER_READY
+2026-10-29T10:59:21.1433810Z LOCK_WAIT|app=week4-lock-control-writer|pid=83|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+2026-10-29T10:59:21.1436186Z LOCK_WAIT|app=week4-lock-control-writer|pid=83|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+2026-10-29T10:59:21.1438586Z LOCK_WAIT|app=week4-lock-control-writer|pid=83|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+2026-10-29T10:59:21.1440113Z 
+2026-10-29T10:59:21.1447968Z ASSERTION_PASS lock_control_writer=timeout
+2026-10-29T10:59:21.1448556Z ASSERTION_PASS lock_observer=observed_ungranted_lock
+2026-10-29T10:59:21.1449297Z MODE_BEGIN=transaction
+2026-10-29T10:59:21.1770267Z DROP TABLE
+2026-10-29T10:59:21.1793919Z CREATE TABLE
+2026-10-29T10:59:21.7153114Z INSERT 0 100000
+2026-10-29T10:59:21.7550881Z ASSERTION_PASS calibration_seed_rows value=<100000>
+2026-10-29T10:59:21.8190567Z DATABASE_SIZE_BEFORE_BYTES mode=transaction value=15244311
+2026-10-29T10:59:21.8191960Z WAL_LSN_BEFORE mode=transaction value=0/3542270
+2026-10-29T10:59:21.8221573Z RUNNER_SNAPSHOT=before-transaction time=2026-10-29T10:59:21Z
+2026-10-29T10:59:21.8234630Z CPU_COUNT=2
+2026-10-29T10:59:21.8247460Z MemTotal:        8122984 kB
+2026-10-29T10:59:21.8248095Z MemAvailable:    7179808 kB
+2026-10-29T10:59:21.8261253Z Filesystem      Size  Used Avail Use% Mounted on
+2026-10-29T10:59:21.8262000Z /dev/root        72G   60G   13G  83% /
+2026-10-29T10:59:21.9383564Z MIGRATION_START mode=transaction time=2026-10-29T10:59:21.937127119Z
+2026-10-29T10:59:23.0045807Z MIGRATION_EXIT mode=transaction status=0 time=2026-10-29T10:59:23.003932108Z
+2026-10-29T10:59:31.8175556Z Timing is on.
+2026-10-29T10:59:31.8179002Z BEGIN
+2026-10-29T10:59:31.8179342Z Time: 0.174 ms
+2026-10-29T10:59:31.8179675Z STEP_START add_currency
+2026-10-29T10:59:31.8180151Z         clock_timestamp        
+2026-10-29T10:59:31.8180534Z -------------------------------
+2026-10-29T10:59:31.8180907Z  2026-10-29 10:59:21.971629+00
+2026-10-29T10:59:31.8181257Z (1 row)
+2026-10-29T10:59:31.8181484Z 
+2026-10-29T10:59:31.8181734Z Time: 0.338 ms
+2026-10-29T10:59:31.8182065Z ALTER TABLE
+2026-10-29T10:59:31.8182375Z Time: 0.853 ms
+2026-10-29T10:59:31.8182852Z         clock_timestamp        
+2026-10-29T10:59:31.8183227Z -------------------------------
+2026-10-29T10:59:31.8183582Z  2026-10-29 10:59:21.972672+00
+2026-10-29T10:59:31.8183921Z (1 row)
+2026-10-29T10:59:31.8184145Z 
+2026-10-29T10:59:31.8184328Z Time: 0.121 ms
+2026-10-29T10:59:31.8184655Z STEP_END add_currency
+2026-10-29T10:59:31.8185015Z STEP_START update_currency
+2026-10-29T10:59:31.8185412Z        clock_timestamp        
+2026-10-29T10:59:31.8185791Z ------------------------------
+2026-10-29T10:59:31.8186145Z  2026-10-29 10:59:21.97282+00
+2026-10-29T10:59:31.8186495Z (1 row)
+2026-10-29T10:59:31.8186896Z 
+2026-10-29T10:59:31.8187079Z Time: 0.133 ms
+2026-10-29T10:59:31.8187396Z UPDATE 100001
+2026-10-29T10:59:31.8187720Z Time: 529.903 ms
+2026-10-29T10:59:31.8188048Z         clock_timestamp        
+2026-10-29T10:59:31.8199165Z -------------------------------
+2026-10-29T10:59:31.8203984Z  2026-10-29 10:59:22.503031+00
+2026-10-29T10:59:31.8204466Z (1 row)
+2026-10-29T10:59:31.8206669Z 
+2026-10-29T10:59:31.8206911Z Time: 0.192 ms
+2026-10-29T10:59:31.8207277Z STEP_END update_currency
+2026-10-29T10:59:31.8207649Z STEP_START create_index
+2026-10-29T10:59:31.8208025Z         clock_timestamp        
+2026-10-29T10:59:31.8208418Z -------------------------------
+2026-10-29T10:59:31.8209338Z  2026-10-29 10:59:22.503171+00
+2026-10-29T10:59:31.8209709Z (1 row)
+2026-10-29T10:59:31.8209914Z 
+2026-10-29T10:59:31.8210102Z Time: 0.097 ms
+2026-10-29T10:59:31.8210422Z CREATE INDEX
+2026-10-29T10:59:31.8210740Z Time: 236.617 ms
+2026-10-29T10:59:31.8211172Z         clock_timestamp        
+2026-10-29T10:59:31.8211584Z -------------------------------
+2026-10-29T10:59:31.8211949Z  2026-10-29 10:59:22.740012+00
+2026-10-29T10:59:31.8212306Z (1 row)
+2026-10-29T10:59:31.8212519Z 
+2026-10-29T10:59:31.8212689Z Time: 0.160 ms
+2026-10-29T10:59:31.8213012Z STEP_END create_index
+2026-10-29T10:59:31.8213365Z STEP_START rename_amount
+2026-10-29T10:59:31.8213704Z         clock_timestamp        
+2026-10-29T10:59:31.8214071Z -------------------------------
+2026-10-29T10:59:31.8214416Z  2026-10-29 10:59:22.740156+00
+2026-10-29T10:59:31.8214768Z (1 row)
+2026-10-29T10:59:31.8214978Z 
+2026-10-29T10:59:31.8215164Z Time: 0.096 ms
+2026-10-29T10:59:31.8215723Z ALTER TABLE
+2026-10-29T10:59:31.8216061Z Time: 0.185 ms
+2026-10-29T10:59:31.8216399Z         clock_timestamp        
+2026-10-29T10:59:31.8216759Z -------------------------------
+2026-10-29T10:59:31.8217105Z  2026-10-29 10:59:22.740483+00
+2026-10-29T10:59:31.8217459Z (1 row)
+2026-10-29T10:59:31.8217665Z 
+2026-10-29T10:59:31.8217832Z Time: 0.106 ms
+2026-10-29T10:59:31.8218153Z STEP_END rename_amount
+2026-10-29T10:59:31.8218867Z STEP_START add_check
+2026-10-29T10:59:31.8219236Z         clock_timestamp        
+2026-10-29T10:59:31.8219596Z -------------------------------
+2026-10-29T10:59:31.8219959Z  2026-10-29 10:59:22.740608+00
+2026-10-29T10:59:31.8220311Z (1 row)
+2026-10-29T10:59:31.8220523Z 
+2026-10-29T10:59:31.8220694Z Time: 0.101 ms
+2026-10-29T10:59:31.8221161Z ALTER TABLE
+2026-10-29T10:59:31.8221470Z Time: 8.778 ms
+2026-10-29T10:59:31.8221786Z         clock_timestamp        
+2026-10-29T10:59:31.8222162Z -------------------------------
+2026-10-29T10:59:31.8222525Z  2026-10-29 10:59:22.749541+00
+2026-10-29T10:59:31.8222881Z (1 row)
+2026-10-29T10:59:31.8225090Z 
+2026-10-29T10:59:31.8225351Z Time: 0.126 ms
+2026-10-29T10:59:31.8225701Z STEP_END add_check
+2026-10-29T10:59:31.8226101Z COMMIT
+2026-10-29T10:59:31.8226542Z Time: 247.380 ms
+2026-10-29T10:59:31.8227210Z WRITER_RESULT mode=transaction attempt=1 time=2026-10-29T10:59:21.860509051Z result=INSERTED psql_exit=0
+2026-10-29T10:59:31.8227839Z SET
+2026-10-29T10:59:31.8228141Z INSERT 0 1
+2026-10-29T10:59:31.8229130Z WRITER_RESULT mode=transaction attempt=2 time=2026-10-29T10:59:22.263775725Z result=LOCK_TIMEOUT psql_exit=1
+2026-10-29T10:59:31.8229808Z SET
+2026-10-29T10:59:31.8230204Z ERROR:  canceling statement due to lock timeout
+2026-10-29T10:59:31.8230762Z LINE 1: SET lock_timeout = '250ms'; INSERT INTO invoices (id, countr...
+2026-10-29T10:59:31.8231302Z                                                 ^
+2026-10-29T10:59:31.8231985Z WRITER_RESULT mode=transaction attempt=3 time=2026-10-29T10:59:22.655781025Z result=LOCK_TIMEOUT psql_exit=1
+2026-10-29T10:59:31.8232670Z SET
+2026-10-29T10:59:31.8233057Z ERROR:  canceling statement due to lock timeout
+2026-10-29T10:59:31.8233623Z LINE 1: SET lock_timeout = '250ms'; INSERT INTO invoices (id, countr...
+2026-10-29T10:59:31.8234280Z                                                 ^
+2026-10-29T10:59:31.8234989Z WRITER_RESULT mode=transaction attempt=4 time=2026-10-29T10:59:23.009170893Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8235683Z SET
+2026-10-29T10:59:31.8236120Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8236773Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8237305Z                                                              ^
+2026-10-29T10:59:31.8238023Z WRITER_RESULT mode=transaction attempt=5 time=2026-10-29T10:59:23.146230426Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8238904Z SET
+2026-10-29T10:59:31.8239343Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8239948Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8240487Z                                                              ^
+2026-10-29T10:59:31.8241203Z WRITER_RESULT mode=transaction attempt=6 time=2026-10-29T10:59:23.297503165Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8241866Z SET
+2026-10-29T10:59:31.8242298Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8242904Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8243450Z                                                              ^
+2026-10-29T10:59:31.8244147Z WRITER_RESULT mode=transaction attempt=7 time=2026-10-29T10:59:23.434174513Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8244810Z SET
+2026-10-29T10:59:31.8245238Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8245821Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8246614Z                                                              ^
+2026-10-29T10:59:31.8247342Z WRITER_RESULT mode=transaction attempt=8 time=2026-10-29T10:59:23.570998015Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8248017Z SET
+2026-10-29T10:59:31.8248448Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8249362Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8250117Z                                                              ^
+2026-10-29T10:59:31.8250860Z WRITER_RESULT mode=transaction attempt=9 time=2026-10-29T10:59:23.707720255Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8251517Z SET
+2026-10-29T10:59:31.8251937Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8252524Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8253060Z                                                              ^
+2026-10-29T10:59:31.8253775Z WRITER_RESULT mode=transaction attempt=10 time=2026-10-29T10:59:23.846259486Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8254445Z SET
+2026-10-29T10:59:31.8254872Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8255475Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8256022Z                                                              ^
+2026-10-29T10:59:31.8256800Z WRITER_RESULT mode=transaction attempt=11 time=2026-10-29T10:59:23.983923607Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8257525Z SET
+2026-10-29T10:59:31.8257958Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8258558Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8259280Z                                                              ^
+2026-10-29T10:59:31.8259998Z WRITER_RESULT mode=transaction attempt=12 time=2026-10-29T10:59:24.121700167Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8260671Z SET
+2026-10-29T10:59:31.8261092Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8261674Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8262197Z                                                              ^
+2026-10-29T10:59:31.8262912Z WRITER_RESULT mode=transaction attempt=13 time=2026-10-29T10:59:24.258091327Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8263604Z SET
+2026-10-29T10:59:31.8264021Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8264608Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8265149Z                                                              ^
+2026-10-29T10:59:31.8265866Z WRITER_RESULT mode=transaction attempt=14 time=2026-10-29T10:59:24.394444260Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8266548Z SET
+2026-10-29T10:59:31.8266970Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8267600Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8268144Z                                                              ^
+2026-10-29T10:59:31.8268992Z WRITER_RESULT mode=transaction attempt=15 time=2026-10-29T10:59:24.530920458Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8269976Z SET
+2026-10-29T10:59:31.8275667Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8276332Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8276894Z                                                              ^
+2026-10-29T10:59:31.8277627Z WRITER_RESULT mode=transaction attempt=16 time=2026-10-29T10:59:24.666828720Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8278440Z SET
+2026-10-29T10:59:31.8279054Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8279870Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8280452Z                                                              ^
+2026-10-29T10:59:31.8281186Z WRITER_RESULT mode=transaction attempt=17 time=2026-10-29T10:59:24.802834143Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8281868Z SET
+2026-10-29T10:59:31.8282298Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8283068Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8283601Z                                                              ^
+2026-10-29T10:59:31.8284315Z WRITER_RESULT mode=transaction attempt=18 time=2026-10-29T10:59:24.941181315Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8285001Z SET
+2026-10-29T10:59:31.8285424Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8285999Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8286555Z                                                              ^
+2026-10-29T10:59:31.8287267Z WRITER_RESULT mode=transaction attempt=19 time=2026-10-29T10:59:25.076849454Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8287933Z SET
+2026-10-29T10:59:31.8288354Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8289180Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8289719Z                                                              ^
+2026-10-29T10:59:31.8290397Z WRITER_RESULT mode=transaction attempt=20 time=2026-10-29T10:59:25.213454972Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8291067Z SET
+2026-10-29T10:59:31.8291515Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8292260Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8292789Z                                                              ^
+2026-10-29T10:59:31.8293474Z WRITER_RESULT mode=transaction attempt=21 time=2026-10-29T10:59:25.349966339Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8294129Z SET
+2026-10-29T10:59:31.8294550Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8295128Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8295649Z                                                              ^
+2026-10-29T10:59:31.8296348Z WRITER_RESULT mode=transaction attempt=22 time=2026-10-29T10:59:25.485942743Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8297026Z SET
+2026-10-29T10:59:31.8297444Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8298031Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8298567Z                                                              ^
+2026-10-29T10:59:31.8299558Z WRITER_RESULT mode=transaction attempt=23 time=2026-10-29T10:59:25.623044516Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8300243Z SET
+2026-10-29T10:59:31.8300687Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8301277Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8301819Z                                                              ^
+2026-10-29T10:59:31.8302521Z WRITER_RESULT mode=transaction attempt=24 time=2026-10-29T10:59:25.759795123Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8303243Z SET
+2026-10-29T10:59:31.8303679Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8304271Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8304828Z                                                              ^
+2026-10-29T10:59:31.8305604Z WRITER_RESULT mode=transaction attempt=25 time=2026-10-29T10:59:25.896811176Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:31.8306280Z SET
+2026-10-29T10:59:31.8306965Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:31.8307589Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:31.8308132Z                                                              ^
+2026-10-29T10:59:31.8308567Z Output format is unaligned.
+2026-10-29T10:59:31.8309090Z Pager usage is off.
+2026-10-29T10:59:31.8309425Z OBSERVER_READY
+2026-10-29T10:59:31.8335680Z LOCK_WAIT|app=week4-writer-transaction|pid=107|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+2026-10-29T10:59:31.8338207Z LOCK_WAIT|app=week4-writer-transaction|pid=107|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+2026-10-29T10:59:31.8340492Z LOCK_WAIT|app=week4-writer-transaction|pid=107|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+2026-10-29T10:59:31.8342581Z LOCK_WAIT|app=week4-writer-transaction|pid=108|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+2026-10-29T10:59:31.8344607Z LOCK_WAIT|app=week4-writer-transaction|pid=108|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106,106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+2026-10-29T10:59:31.8346694Z LOCK_WAIT|app=week4-writer-transaction|pid=108|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106,106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+2026-10-29T10:59:31.8348992Z LOCK_WAIT|app=week4-writer-transaction|pid=110|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200004, 'DE', 10.00);
+2026-10-29T10:59:31.8358404Z LOCK_WAIT|app=week4-writer-transaction|pid=110|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200004, 'DE', 10.00);
+2026-10-29T10:59:31.8359821Z 
+2026-10-29T10:59:31.8360106Z ASSERTION_PASS writer_attempts_transaction value=<25>
+2026-10-29T10:59:31.8360718Z ASSERTION_PASS writer_unexpected_errors_transaction value=<0>
+2026-10-29T10:59:31.8361471Z WRITER_SUMMARY mode=transaction attempted=25 inserted=1 lock_timeout=2 old_column_missing=22
+2026-10-29T10:59:31.8362188Z OBSERVER_LOCK_SAMPLE_COUNT mode=transaction value=8
+2026-10-29T10:59:31.8775519Z ASSERTION_PASS all_rows_accounted_for_transaction value=<100001>
+2026-10-29T10:59:31.9421364Z ROW_COUNT_AFTER mode=transaction value=100001
+2026-10-29T10:59:31.9429473Z DATABASE_SIZE_AFTER_BYTES mode=transaction value=29424663
+2026-10-29T10:59:31.9430304Z WAL_LSN_DELTA_BYTES mode=transaction value=29310352 (includes concurrent writer activity)
+2026-10-29T10:59:31.9440942Z RUNNER_SNAPSHOT=after-transaction time=2026-10-29T10:59:31Z
+2026-10-29T10:59:31.9453069Z CPU_COUNT=2
+2026-10-29T10:59:31.9465476Z MemTotal:        8122984 kB
+2026-10-29T10:59:31.9466070Z MemAvailable:    7172432 kB
+2026-10-29T10:59:31.9479498Z Filesystem      Size  Used Avail Use% Mounted on
+2026-10-29T10:59:31.9479912Z /dev/root        72G   60G   13G  83% /
+2026-10-29T10:59:31.9481919Z MODE_END=transaction
+2026-10-29T10:59:31.9482791Z MODE_BEGIN=autocommit
+2026-10-29T10:59:32.0033543Z DROP TABLE
+2026-10-29T10:59:32.0061538Z CREATE TABLE
+2026-10-29T10:59:32.2655530Z INSERT 0 100000
+2026-10-29T10:59:32.3041765Z ASSERTION_PASS calibration_seed_rows value=<100000>
+2026-10-29T10:59:32.3680461Z DATABASE_SIZE_BEFORE_BYTES mode=autocommit value=15260695
+2026-10-29T10:59:32.3689227Z WAL_LSN_BEFORE mode=autocommit value=0/5F37958
+2026-10-29T10:59:32.3710404Z RUNNER_SNAPSHOT=before-autocommit time=2026-10-29T10:59:32Z
+2026-10-29T10:59:32.3723511Z CPU_COUNT=2
+2026-10-29T10:59:32.3736110Z MemTotal:        8122984 kB
+2026-10-29T10:59:32.3736768Z MemAvailable:    7172292 kB
+2026-10-29T10:59:32.3749617Z Filesystem      Size  Used Avail Use% Mounted on
+2026-10-29T10:59:32.3750334Z /dev/root        72G   60G   13G  83% /
+2026-10-29T10:59:32.4869543Z MIGRATION_START mode=autocommit time=2026-10-29T10:59:32.486534598Z
+2026-10-29T10:59:33.5372184Z MIGRATION_EXIT mode=autocommit status=0 time=2026-10-29T10:59:33.536762721Z
+2026-10-29T10:59:42.3667907Z Timing is on.
+2026-10-29T10:59:42.3668514Z STEP_START add_currency
+2026-10-29T10:59:42.3669710Z         clock_timestamp        
+2026-10-29T10:59:42.3670304Z -------------------------------
+2026-10-29T10:59:42.3670786Z  2026-10-29 10:59:32.521179+00
+2026-10-29T10:59:42.3671208Z (1 row)
+2026-10-29T10:59:42.3671479Z 
+2026-10-29T10:59:42.3671738Z Time: 0.439 ms
+2026-10-29T10:59:42.3672126Z ALTER TABLE
+2026-10-29T10:59:42.3672501Z Time: 1.085 ms
+2026-10-29T10:59:42.3672907Z         clock_timestamp        
+2026-10-29T10:59:42.3673358Z -------------------------------
+2026-10-29T10:59:42.3673902Z  2026-10-29 10:59:32.522485+00
+2026-10-29T10:59:42.3674342Z (1 row)
+2026-10-29T10:59:42.3674632Z 
+2026-10-29T10:59:42.3674878Z Time: 0.131 ms
+2026-10-29T10:59:42.3675297Z STEP_END add_currency
+2026-10-29T10:59:42.3675728Z STEP_START update_currency
+2026-10-29T10:59:42.3676179Z         clock_timestamp        
+2026-10-29T10:59:42.3676633Z -------------------------------
+2026-10-29T10:59:42.3677071Z  2026-10-29 10:59:32.522635+00
+2026-10-29T10:59:42.3677499Z (1 row)
+2026-10-29T10:59:42.3677780Z 
+2026-10-29T10:59:42.3678026Z Time: 0.113 ms
+2026-10-29T10:59:42.3678426Z UPDATE 100001
+2026-10-29T10:59:42.3678989Z Time: 810.200 ms
+2026-10-29T10:59:42.3679411Z         clock_timestamp        
+2026-10-29T10:59:42.3679852Z -------------------------------
+2026-10-29T10:59:42.3680284Z  2026-10-29 10:59:33.333084+00
+2026-10-29T10:59:42.3680705Z (1 row)
+2026-10-29T10:59:42.3680982Z 
+2026-10-29T10:59:42.3681232Z Time: 0.181 ms
+2026-10-29T10:59:42.3681668Z STEP_END update_currency
+2026-10-29T10:59:42.3682364Z STEP_START create_index
+2026-10-29T10:59:42.3682985Z         clock_timestamp        
+2026-10-29T10:59:42.3683432Z -------------------------------
+2026-10-29T10:59:42.3683864Z  2026-10-29 10:59:33.333229+00
+2026-10-29T10:59:42.3684271Z (1 row)
+2026-10-29T10:59:42.3684551Z 
+2026-10-29T10:59:42.3684795Z Time: 0.107 ms
+2026-10-29T10:59:42.3685191Z CREATE INDEX
+2026-10-29T10:59:42.3685594Z Time: 185.671 ms
+2026-10-29T10:59:42.3686000Z         clock_timestamp        
+2026-10-29T10:59:42.3686534Z -------------------------------
+2026-10-29T10:59:42.3686967Z  2026-10-29 10:59:33.519175+00
+2026-10-29T10:59:42.3687398Z (1 row)
+2026-10-29T10:59:42.3687678Z 
+2026-10-29T10:59:42.3687932Z Time: 0.212 ms
+2026-10-29T10:59:42.3688328Z STEP_END create_index
+2026-10-29T10:59:42.3688892Z STEP_START rename_amount
+2026-10-29T10:59:42.3689321Z         clock_timestamp        
+2026-10-29T10:59:42.3689758Z -------------------------------
+2026-10-29T10:59:42.3690196Z  2026-10-29 10:59:33.519338+00
+2026-10-29T10:59:42.3690619Z (1 row)
+2026-10-29T10:59:42.3690902Z 
+2026-10-29T10:59:42.3691158Z Time: 0.109 ms
+2026-10-29T10:59:42.3691548Z ALTER TABLE
+2026-10-29T10:59:42.3691924Z Time: 0.598 ms
+2026-10-29T10:59:42.3692330Z         clock_timestamp        
+2026-10-29T10:59:42.3692781Z -------------------------------
+2026-10-29T10:59:42.3693208Z  2026-10-29 10:59:33.520095+00
+2026-10-29T10:59:42.3693611Z (1 row)
+2026-10-29T10:59:42.3693869Z 
+2026-10-29T10:59:42.3694108Z Time: 0.124 ms
+2026-10-29T10:59:42.3694499Z STEP_END rename_amount
+2026-10-29T10:59:42.3694919Z STEP_START add_check
+2026-10-29T10:59:42.3695519Z         clock_timestamp        
+2026-10-29T10:59:42.3696152Z -------------------------------
+2026-10-29T10:59:42.3696857Z  2026-10-29 10:59:33.522574+00
+2026-10-29T10:59:42.3697334Z (1 row)
+2026-10-29T10:59:42.3697597Z 
+2026-10-29T10:59:42.3697851Z Time: 2.483 ms
+2026-10-29T10:59:42.3698235Z ALTER TABLE
+2026-10-29T10:59:42.3698777Z Time: 10.388 ms
+2026-10-29T10:59:42.3699180Z         clock_timestamp        
+2026-10-29T10:59:42.3699613Z -------------------------------
+2026-10-29T10:59:42.3700251Z  2026-10-29 10:59:33.533243+00
+2026-10-29T10:59:42.3700652Z (1 row)
+2026-10-29T10:59:42.3700923Z 
+2026-10-29T10:59:42.3701172Z Time: 0.204 ms
+2026-10-29T10:59:42.3701565Z STEP_END add_check
+2026-10-29T10:59:42.3702288Z WRITER_RESULT mode=autocommit attempt=1 time=2026-10-29T10:59:32.409629641Z result=INSERTED psql_exit=0
+2026-10-29T10:59:42.3703101Z SET
+2026-10-29T10:59:42.3703467Z INSERT 0 1
+2026-10-29T10:59:42.3704099Z WRITER_RESULT mode=autocommit attempt=2 time=2026-10-29T10:59:32.750059727Z result=INSERTED psql_exit=0
+2026-10-29T10:59:42.3704801Z SET
+2026-10-29T10:59:42.3705143Z INSERT 0 1
+2026-10-29T10:59:42.3705761Z WRITER_RESULT mode=autocommit attempt=3 time=2026-10-29T10:59:33.058759019Z result=INSERTED psql_exit=0
+2026-10-29T10:59:42.3706464Z SET
+2026-10-29T10:59:42.3706828Z INSERT 0 1
+2026-10-29T10:59:42.3707449Z WRITER_RESULT mode=autocommit attempt=4 time=2026-10-29T10:59:33.303459943Z result=INSERTED psql_exit=0
+2026-10-29T10:59:42.3708136Z SET
+2026-10-29T10:59:42.3708492Z INSERT 0 1
+2026-10-29T10:59:42.3709706Z WRITER_RESULT mode=autocommit attempt=5 time=2026-10-29T10:59:33.523484621Z result=INSERTED psql_exit=0
+2026-10-29T10:59:42.3710422Z SET
+2026-10-29T10:59:42.3710768Z INSERT 0 1
+2026-10-29T10:59:42.3711422Z WRITER_RESULT mode=autocommit attempt=6 time=2026-10-29T10:59:33.660946621Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3712174Z SET
+2026-10-29T10:59:42.3712638Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3713307Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3713922Z                                                              ^
+2026-10-29T10:59:42.3714719Z WRITER_RESULT mode=autocommit attempt=7 time=2026-10-29T10:59:33.798305285Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3715441Z SET
+2026-10-29T10:59:42.3715882Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3716523Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3717153Z                                                              ^
+2026-10-29T10:59:42.3718036Z WRITER_RESULT mode=autocommit attempt=8 time=2026-10-29T10:59:33.934672620Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3719048Z SET
+2026-10-29T10:59:42.3719494Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3720138Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3720728Z                                                              ^
+2026-10-29T10:59:42.3721513Z WRITER_RESULT mode=autocommit attempt=9 time=2026-10-29T10:59:34.071384949Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3722248Z SET
+2026-10-29T10:59:42.3722692Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3723331Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3723933Z                                                              ^
+2026-10-29T10:59:42.3724714Z WRITER_RESULT mode=autocommit attempt=10 time=2026-10-29T10:59:34.207731091Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3725448Z SET
+2026-10-29T10:59:42.3725987Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3726629Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3727224Z                                                              ^
+2026-10-29T10:59:42.3727982Z WRITER_RESULT mode=autocommit attempt=11 time=2026-10-29T10:59:34.345054077Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3729070Z SET
+2026-10-29T10:59:42.3729555Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3730212Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3730831Z                                                              ^
+2026-10-29T10:59:42.3731591Z WRITER_RESULT mode=autocommit attempt=12 time=2026-10-29T10:59:34.483058545Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3732497Z SET
+2026-10-29T10:59:42.3732958Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3733617Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3734234Z                                                              ^
+2026-10-29T10:59:42.3735021Z WRITER_RESULT mode=autocommit attempt=13 time=2026-10-29T10:59:34.620457779Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3735766Z SET
+2026-10-29T10:59:42.3736343Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3737058Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3737666Z                                                              ^
+2026-10-29T10:59:42.3738414Z WRITER_RESULT mode=autocommit attempt=14 time=2026-10-29T10:59:34.756496229Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3739330Z SET
+2026-10-29T10:59:42.3739823Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3740673Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3741279Z                                                              ^
+2026-10-29T10:59:42.3742029Z WRITER_RESULT mode=autocommit attempt=15 time=2026-10-29T10:59:34.902268878Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3742755Z SET
+2026-10-29T10:59:42.3743216Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3743891Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3744501Z                                                              ^
+2026-10-29T10:59:42.3745263Z WRITER_RESULT mode=autocommit attempt=16 time=2026-10-29T10:59:35.039271318Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3746014Z SET
+2026-10-29T10:59:42.3746476Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3747144Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3747785Z                                                              ^
+2026-10-29T10:59:42.3748831Z WRITER_RESULT mode=autocommit attempt=17 time=2026-10-29T10:59:35.175967986Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3749647Z SET
+2026-10-29T10:59:42.3750098Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3750766Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3751381Z                                                              ^
+2026-10-29T10:59:42.3752157Z WRITER_RESULT mode=autocommit attempt=18 time=2026-10-29T10:59:35.313704865Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3752896Z SET
+2026-10-29T10:59:42.3753348Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3753996Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3754607Z                                                              ^
+2026-10-29T10:59:42.3755363Z WRITER_RESULT mode=autocommit attempt=19 time=2026-10-29T10:59:35.451108626Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3756131Z SET
+2026-10-29T10:59:42.3756579Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3757226Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3757820Z                                                              ^
+2026-10-29T10:59:42.3758946Z WRITER_RESULT mode=autocommit attempt=20 time=2026-10-29T10:59:35.588521175Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3761392Z SET
+2026-10-29T10:59:42.3765050Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3765792Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3766418Z                                                              ^
+2026-10-29T10:59:42.3767418Z WRITER_RESULT mode=autocommit attempt=21 time=2026-10-29T10:59:35.725937885Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3768180Z SET
+2026-10-29T10:59:42.3768805Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3769584Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3770203Z                                                              ^
+2026-10-29T10:59:42.3770978Z WRITER_RESULT mode=autocommit attempt=22 time=2026-10-29T10:59:35.863078909Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3771730Z SET
+2026-10-29T10:59:42.3772196Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3772850Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3773455Z                                                              ^
+2026-10-29T10:59:42.3774222Z WRITER_RESULT mode=autocommit attempt=23 time=2026-10-29T10:59:35.999952690Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3774979Z SET
+2026-10-29T10:59:42.3775435Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3776096Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3776698Z                                                              ^
+2026-10-29T10:59:42.3777534Z WRITER_RESULT mode=autocommit attempt=24 time=2026-10-29T10:59:36.136726846Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3778298Z SET
+2026-10-29T10:59:42.3778928Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3779609Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3780231Z                                                              ^
+2026-10-29T10:59:42.3781009Z WRITER_RESULT mode=autocommit attempt=25 time=2026-10-29T10:59:36.274391340Z result=OLD_COLUMN_MISSING psql_exit=1
+2026-10-29T10:59:42.3781753Z SET
+2026-10-29T10:59:42.3782227Z ERROR:  column "amount" of relation "invoices" does not exist
+2026-10-29T10:59:42.3783032Z LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+2026-10-29T10:59:42.3783712Z                                                              ^
+2026-10-29T10:59:42.3784202Z Output format is unaligned.
+2026-10-29T10:59:42.3784637Z Pager usage is off.
+2026-10-29T10:59:42.3785161Z OBSERVER_READY
+2026-10-29T10:59:42.3785482Z 
+2026-10-29T10:59:42.3785806Z ASSERTION_PASS writer_attempts_autocommit value=<25>
+2026-10-29T10:59:42.3786429Z ASSERTION_PASS writer_unexpected_errors_autocommit value=<0>
+2026-10-29T10:59:42.3801447Z WRITER_SUMMARY mode=autocommit attempted=25 inserted=5 lock_timeout=0 old_column_missing=20
+2026-10-29T10:59:42.3820798Z OBSERVER_LOCK_SAMPLE_COUNT mode=autocommit value=0
+2026-10-29T10:59:42.4200983Z ASSERTION_PASS all_rows_accounted_for_autocommit value=<100005>
+2026-10-29T10:59:42.4976558Z ROW_COUNT_AFTER mode=autocommit value=100005
+2026-10-29T10:59:42.4982988Z DATABASE_SIZE_AFTER_BYTES mode=autocommit value=26729495
+2026-10-29T10:59:42.4989979Z WAL_LSN_DELTA_BYTES mode=autocommit value=27689640 (includes concurrent writer activity)
+2026-10-29T10:59:42.4991584Z RUNNER_SNAPSHOT=after-autocommit time=2026-10-29T10:59:42Z
+2026-10-29T10:59:42.4992502Z CPU_COUNT=2
+2026-10-29T10:59:42.4993053Z MemTotal:        8122984 kB
+2026-10-29T10:59:42.4993854Z MemAvailable:    7180200 kB
+2026-10-29T10:59:42.4994420Z Filesystem      Size  Used Avail Use% Mounted on
+2026-10-29T10:59:42.4995326Z /dev/root        72G   60G   13G  83% /
+2026-10-29T10:59:42.4995941Z MODE_END=autocommit
+2026-10-29T10:59:42.4997070Z ASSERTION_BATCH_COMPLETE experiment=02 seed_rows=100000 scale_up=NOT_RUN
+2026-10-29T10:59:42.4997840Z SCRIPT_EXIT_STATUS=0
+2026-10-29T10:59:42.5065835Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-10-29T10:59:42.5066159Z with:
+2026-10-29T10:59:42.5066347Z   name: week4-experiment-02-40861765376-1
+2026-10-29T10:59:42.5066577Z   path: artifacts/40861765376-1/
+2026-10-29T10:59:42.5066961Z   if-no-files-found: warn
+2026-10-29T10:59:42.5067149Z   retention-days: 14
+2026-10-29T10:59:42.5067325Z   compression-level: 6
+2026-10-29T10:59:42.5067500Z   overwrite: false
+2026-10-29T10:59:42.5067682Z   include-hidden-files: false
+2026-10-29T10:59:42.5067877Z   archive: true
+2026-10-29T10:59:42.5068039Z env:
+2026-10-29T10:59:42.5068201Z   PGHOST: 127.0.0.1
+2026-10-29T10:59:42.5068367Z   PGPORT: 5432
+2026-10-29T10:59:42.5068528Z   PGUSER: ci
+2026-10-29T10:59:42.5068955Z   PGPASSWORD: synthetic-only
+2026-10-29T10:59:42.5069170Z   PGDATABASE: week4
+2026-10-29T10:59:42.5069343Z   REVIEWED_BY: Nabiel
+2026-10-29T10:59:42.5069708Z   RUN_ARTIFACT_DIR: /home/runner/work/sscriticalai-week4/sscriticalai-week4/artifacts/40861765376-1
+2026-10-29T10:59:42.5070073Z ##[endgroup]
+2026-10-29T10:59:42.8445572Z With the provided path, there will be 16 files uploaded
+2026-10-29T10:59:42.8446199Z Artifact name is valid!
+2026-10-29T10:59:42.8446501Z Root directory input is valid!
+2026-10-29T10:59:43.2918534Z Uploading artifact: week4-experiment-02-40861765376-1.zip
+2026-10-29T10:59:43.2920331Z Beginning upload of artifact content to blob storage
+2026-10-29T10:59:43.6831653Z Uploaded bytes 10303
+2026-10-29T10:59:43.7466516Z Finished uploading artifact content to blob storage!
+2026-10-29T10:59:43.7467591Z SHA256 digest of uploaded artifact is 2fcf6f11544b606a7a35bc6adf20ed51843e18a313df7bf3823f3a8dd2f8d035
+2026-10-29T10:59:43.7472306Z Finalizing artifact upload
+2026-10-29T10:59:44.3761426Z Artifact week4-experiment-02-40861765376-1 successfully finalized. Artifact ID 12891921612
+2026-10-29T10:59:44.3762867Z Artifact week4-experiment-02-40861765376-1 has been successfully uploaded! Final size is 10303 bytes. Artifact ID is 12891921612
+2026-10-29T10:59:44.3764182Z Artifact download URL: https://github.com/nabielss/sscriticalai-week4/actions/runs/40861765376/artifacts/12891921612
+2026-10-29T10:59:44.3942226Z Post job cleanup.
+2026-10-29T10:59:44.4816538Z [command]/usr/bin/git version
+2026-10-29T10:59:44.4922744Z git version 2.56.0
+2026-10-29T10:59:44.4927763Z Temporarily overriding HOME='/home/runner/work/_temp/5c0bf499-e9d5-4396-84aa-e3d5c889f888' before making global git config changes
+2026-10-29T10:59:44.4928797Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T10:59:44.4929626Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sscriticalai-week4/sscriticalai-week4
+2026-10-29T10:59:44.5083661Z Removing SSH command configuration
+2026-10-29T10:59:44.5084435Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T10:59:44.5086294Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T10:59:44.5471533Z Removing HTTP extra header
+2026-10-29T10:59:44.5472433Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T10:59:44.5474496Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T10:59:44.5805722Z Removing includeIf entries pointing to credentials config files
+2026-10-29T10:59:44.5812326Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T10:59:44.5848135Z includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path
+2026-10-29T10:59:44.5851096Z includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path
+2026-10-29T10:59:44.5851764Z includeif.gitdir:/github/workspace/.git.path
+2026-10-29T10:59:44.5852233Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-29T10:59:44.5856701Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path
+2026-10-29T10:59:44.5888321Z /home/runner/work/_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config
+2026-10-29T10:59:44.5909825Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-a33250d1\-c206\-4687\-988d\-2b7cd7083495\.config
+2026-10-29T10:59:44.5997414Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path
+2026-10-29T10:59:44.6034238Z /home/runner/work/_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config
+2026-10-29T10:59:44.6041559Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-a33250d1\-c206\-4687\-988d\-2b7cd7083495\.config
+2026-10-29T10:59:44.6122041Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-10-29T10:59:44.6243533Z /github/runner_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config
+2026-10-29T10:59:44.6277641Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-a33250d1\-c206\-4687\-988d\-2b7cd7083495\.config
+2026-10-29T10:59:44.6280815Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-29T10:59:44.6282367Z /github/runner_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config
+2026-10-29T10:59:44.6290185Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-a33250d1\-c206\-4687\-988d\-2b7cd7083495\.config
+2026-10-29T10:59:44.6360527Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T10:59:44.6632125Z Removing credentials config '/home/runner/work/_temp/git-credentials-a33250d1-c206-4687-988d-2b7cd7083495.config'
+2026-10-29T10:59:44.6756070Z Print service container logs: ac8fb59f7f3a405782841244ce79516c_postgres16_e9395c
+2026-10-29T10:59:44.6760594Z ##[command]/usr/bin/docker logs --details 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:44.6909327Z  initdb: warning: enabling "trust" authentication for local connections
+2026-10-29T10:59:44.6910114Z  The files belonging to this database system will be owned by user "postgres".
+2026-10-29T10:59:44.6927992Z  initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+2026-10-29T10:59:44.6929053Z  This user must also own the server process.
+2026-10-29T10:59:44.6930167Z  2026-10-29 10:59:04.779 UTC [1] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T10:59:44.6930940Z  
+2026-10-29T10:59:44.6932312Z  2026-10-29 10:59:04.779 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-29T10:59:44.6932880Z  The database cluster will be initialized with locale "en_US.utf8".
+2026-10-29T10:59:44.6933744Z  2026-10-29 10:59:04.779 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-10-29T10:59:44.6934481Z  The default database encoding has accordingly been set to "UTF8".
+2026-10-29T10:59:44.6936572Z  2026-10-29 10:59:04.780 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-29T10:59:44.6937180Z  The default text search configuration will be set to "english".
+2026-10-29T10:59:44.6937711Z  
+2026-10-29T10:59:44.6938262Z  2026-10-29 10:59:04.783 UTC [63] LOG:  database system was shut down at 2026-10-29 10:59:04 UTC
+2026-10-29T10:59:44.6939576Z  2026-10-29 10:59:04.791 UTC [1] LOG:  database system is ready to accept connections
+2026-10-29T10:59:44.6940064Z  Data page checksums are disabled.
+2026-10-29T10:59:44.6940702Z  2026-10-29 10:59:11.680 UTC [83] ERROR:  canceling statement due to lock timeout at character 41
+2026-10-29T10:59:44.6941444Z  
+2026-10-29T10:59:44.6942367Z  2026-10-29 10:59:11.680 UTC [83] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+2026-10-29T10:59:44.6943188Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2026-10-29T10:59:44.6943888Z  2026-10-29 10:59:22.258 UTC [107] ERROR:  canceling statement due to lock timeout at character 41
+2026-10-29T10:59:44.6944797Z  2026-10-29 10:59:22.258 UTC [107] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+2026-10-29T10:59:44.6945654Z  2026-10-29 10:59:22.649 UTC [108] ERROR:  canceling statement due to lock timeout at character 41
+2026-10-29T10:59:44.6946500Z  2026-10-29 10:59:22.649 UTC [108] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+2026-10-29T10:59:44.6947369Z  2026-10-29 10:59:22.997 UTC [110] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6947940Z  2026-10-29 10:59:22.997 UTC [110] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200004, 'DE', 10.00);
+2026-10-29T10:59:44.6948493Z  2026-10-29 10:59:23.140 UTC [111] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6949517Z  2026-10-29 10:59:23.140 UTC [111] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200005, 'DE', 10.00);
+2026-10-29T10:59:44.6950183Z  2026-10-29 10:59:23.291 UTC [119] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6950749Z  2026-10-29 10:59:23.291 UTC [119] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200006, 'DE', 10.00);
+2026-10-29T10:59:44.6951310Z  2026-10-29 10:59:23.428 UTC [121] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6952090Z  2026-10-29 10:59:23.428 UTC [121] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200007, 'DE', 10.00);
+2026-10-29T10:59:44.6952658Z  2026-10-29 10:59:23.565 UTC [122] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6953198Z  2026-10-29 10:59:23.565 UTC [122] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200008, 'DE', 10.00);
+2026-10-29T10:59:44.6953737Z  2026-10-29 10:59:23.701 UTC [123] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6954290Z  2026-10-29 10:59:23.701 UTC [123] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200009, 'DE', 10.00);
+2026-10-29T10:59:44.6954833Z  2026-10-29 10:59:23.839 UTC [124] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6955376Z  2026-10-29 10:59:23.839 UTC [124] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200010, 'DE', 10.00);
+2026-10-29T10:59:44.6955915Z  2026-10-29 10:59:23.977 UTC [125] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6956443Z  2026-10-29 10:59:23.977 UTC [125] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200011, 'DE', 10.00);
+2026-10-29T10:59:44.6956973Z  2026-10-29 10:59:24.115 UTC [126] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6957503Z  2026-10-29 10:59:24.115 UTC [126] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200012, 'DE', 10.00);
+2026-10-29T10:59:44.6958034Z  2026-10-29 10:59:24.252 UTC [127] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6958589Z  2026-10-29 10:59:24.252 UTC [127] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200013, 'DE', 10.00);
+2026-10-29T10:59:44.6959534Z  2026-10-29 10:59:24.388 UTC [128] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6960092Z  2026-10-29 10:59:24.388 UTC [128] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200014, 'DE', 10.00);
+2026-10-29T10:59:44.6960644Z  2026-10-29 10:59:24.525 UTC [129] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6961189Z  2026-10-29 10:59:24.525 UTC [129] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200015, 'DE', 10.00);
+2026-10-29T10:59:44.6961742Z  2026-10-29 10:59:24.660 UTC [130] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6962279Z  2026-10-29 10:59:24.660 UTC [130] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200016, 'DE', 10.00);
+2026-10-29T10:59:44.6962821Z  2026-10-29 10:59:24.797 UTC [131] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6963359Z  2026-10-29 10:59:24.797 UTC [131] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200017, 'DE', 10.00);
+2026-10-29T10:59:44.6963891Z  2026-10-29 10:59:24.934 UTC [132] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6964421Z  2026-10-29 10:59:24.934 UTC [132] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200018, 'DE', 10.00);
+2026-10-29T10:59:44.6964955Z  2026-10-29 10:59:25.071 UTC [133] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6965484Z  2026-10-29 10:59:25.071 UTC [133] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200019, 'DE', 10.00);
+2026-10-29T10:59:44.6966124Z  2026-10-29 10:59:25.207 UTC [134] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6966700Z  2026-10-29 10:59:25.207 UTC [134] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200020, 'DE', 10.00);
+2026-10-29T10:59:44.6967243Z  2026-10-29 10:59:25.343 UTC [135] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6967789Z  2026-10-29 10:59:25.343 UTC [135] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200021, 'DE', 10.00);
+2026-10-29T10:59:44.6968318Z  2026-10-29 10:59:25.480 UTC [136] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6969148Z  2026-10-29 10:59:25.480 UTC [136] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200022, 'DE', 10.00);
+2026-10-29T10:59:44.6969735Z  2026-10-29 10:59:25.617 UTC [137] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6970290Z  2026-10-29 10:59:25.617 UTC [137] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200023, 'DE', 10.00);
+2026-10-29T10:59:44.6970818Z  2026-10-29 10:59:25.753 UTC [138] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6971352Z  2026-10-29 10:59:25.753 UTC [138] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200024, 'DE', 10.00);
+2026-10-29T10:59:44.6971879Z  2026-10-29 10:59:25.890 UTC [139] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6972410Z  2026-10-29 10:59:25.890 UTC [139] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200025, 'DE', 10.00);
+2026-10-29T10:59:44.6972939Z  2026-10-29 10:59:33.654 UTC [172] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6973474Z  2026-10-29 10:59:33.654 UTC [172] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200006, 'DE', 10.00);
+2026-10-29T10:59:44.6974198Z  2026-10-29 10:59:33.791 UTC [173] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6974751Z  2026-10-29 10:59:33.791 UTC [173] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200007, 'DE', 10.00);
+2026-10-29T10:59:44.6975285Z  2026-10-29 10:59:33.928 UTC [174] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6975824Z  2026-10-29 10:59:33.928 UTC [174] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200008, 'DE', 10.00);
+2026-10-29T10:59:44.6976350Z  2026-10-29 10:59:34.065 UTC [175] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6976879Z  2026-10-29 10:59:34.065 UTC [175] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200009, 'DE', 10.00);
+2026-10-29T10:59:44.6977426Z  2026-10-29 10:59:34.201 UTC [176] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6977962Z  2026-10-29 10:59:34.201 UTC [176] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200010, 'DE', 10.00);
+2026-10-29T10:59:44.6978495Z  2026-10-29 10:59:34.338 UTC [177] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6979264Z  2026-10-29 10:59:34.338 UTC [177] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200011, 'DE', 10.00);
+2026-10-29T10:59:44.6979818Z  2026-10-29 10:59:34.476 UTC [178] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6980357Z  2026-10-29 10:59:34.476 UTC [178] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200012, 'DE', 10.00);
+2026-10-29T10:59:44.6980991Z  2026-10-29 10:59:34.613 UTC [179] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6981547Z  2026-10-29 10:59:34.613 UTC [179] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200013, 'DE', 10.00);
+2026-10-29T10:59:44.6982094Z  2026-10-29 10:59:34.750 UTC [180] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6982623Z  2026-10-29 10:59:34.750 UTC [180] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200014, 'DE', 10.00);
+2026-10-29T10:59:44.6983151Z  2026-10-29 10:59:34.895 UTC [182] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6983690Z  2026-10-29 10:59:34.895 UTC [182] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200015, 'DE', 10.00);
+2026-10-29T10:59:44.6984218Z  2026-10-29 10:59:35.033 UTC [183] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6984762Z  2026-10-29 10:59:35.033 UTC [183] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200016, 'DE', 10.00);
+2026-10-29T10:59:44.6985293Z  2026-10-29 10:59:35.170 UTC [184] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6985822Z  2026-10-29 10:59:35.170 UTC [184] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200017, 'DE', 10.00);
+2026-10-29T10:59:44.6986353Z  2026-10-29 10:59:35.306 UTC [185] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6986880Z  2026-10-29 10:59:35.306 UTC [185] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200018, 'DE', 10.00);
+2026-10-29T10:59:44.6987404Z  2026-10-29 10:59:35.444 UTC [186] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6988064Z  2026-10-29 10:59:35.444 UTC [186] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200019, 'DE', 10.00);
+2026-10-29T10:59:44.6988605Z  2026-10-29 10:59:35.582 UTC [187] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6989353Z  2026-10-29 10:59:35.582 UTC [187] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200020, 'DE', 10.00);
+2026-10-29T10:59:44.6989895Z  2026-10-29 10:59:35.720 UTC [188] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6990420Z  2026-10-29 10:59:35.720 UTC [188] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200021, 'DE', 10.00);
+2026-10-29T10:59:44.6990955Z  2026-10-29 10:59:35.856 UTC [189] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6991488Z  2026-10-29 10:59:35.856 UTC [189] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200022, 'DE', 10.00);
+2026-10-29T10:59:44.6992017Z  2026-10-29 10:59:35.993 UTC [190] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6992551Z  2026-10-29 10:59:35.993 UTC [190] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200023, 'DE', 10.00);
+2026-10-29T10:59:44.6993073Z  2026-10-29 10:59:36.130 UTC [191] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6993600Z  2026-10-29 10:59:36.130 UTC [191] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200024, 'DE', 10.00);
+2026-10-29T10:59:44.6994133Z  2026-10-29 10:59:36.268 UTC [192] ERROR:  column "amount" of relation "invoices" does not exist at character 64
+2026-10-29T10:59:44.6994660Z  2026-10-29 10:59:36.268 UTC [192] STATEMENT:  SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200025, 'DE', 10.00);
+2026-10-29T10:59:44.6995211Z  creating subdirectories ... ok
+2026-10-29T10:59:44.6995520Z  selecting dynamic shared memory implementation ... posix
+2026-10-29T10:59:44.6995807Z  selecting default max_connections ... 100
+2026-10-29T10:59:44.6996048Z  selecting default shared_buffers ... 128MB
+2026-10-29T10:59:44.6996280Z  selecting default time zone ... Etc/UTC
+2026-10-29T10:59:44.6996506Z  creating configuration files ... ok
+2026-10-29T10:59:44.6996732Z  running bootstrap script ... ok
+2026-10-29T10:59:44.6996972Z  performing post-bootstrap initialization ... ok
+2026-10-29T10:59:44.6997222Z  syncing data to disk ... ok
+2026-10-29T10:59:44.6997412Z  
+2026-10-29T10:59:44.6997562Z  
+2026-10-29T10:59:44.6997752Z  Success. You can now start the database server using:
+2026-10-29T10:59:44.6997997Z  
+2026-10-29T10:59:44.6998204Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+2026-10-29T10:59:44.6998446Z  
+2026-10-29T10:59:44.6999137Z  waiting for server to start....2026-10-29 10:59:04.310 UTC [47] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T10:59:44.6999805Z  2026-10-29 10:59:04.311 UTC [47] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-29T10:59:44.7000236Z  2026-10-29 10:59:04.313 UTC [50] LOG:  database system was shut down at 2026-10-29 10:59:03 UTC
+2026-10-29T10:59:44.7000621Z  2026-10-29 10:59:04.343 UTC [47] LOG:  database system is ready to accept connections
+2026-10-29T10:59:44.7000913Z   done
+2026-10-29T10:59:44.7001071Z  server started
+2026-10-29T10:59:44.7001240Z  CREATE DATABASE
+2026-10-29T10:59:44.7001400Z  
+2026-10-29T10:59:44.7001549Z  
+2026-10-29T10:59:44.7001814Z  /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+2026-10-29T10:59:44.7002131Z  
+2026-10-29T10:59:44.7002334Z  2026-10-29 10:59:04.558 UTC [47] LOG:  received fast shutdown request
+2026-10-29T10:59:44.7002732Z  waiting for server to shut down....2026-10-29 10:59:04.559 UTC [47] LOG:  aborting any active transactions
+2026-10-29T10:59:44.7003464Z  2026-10-29 10:59:04.562 UTC [47] LOG:  background worker "logical replication launcher" (PID 53) exited with exit code 1
+2026-10-29T10:59:44.7003966Z  2026-10-29 10:59:04.562 UTC [48] LOG:  shutting down
+2026-10-29T10:59:44.7004279Z  2026-10-29 10:59:04.562 UTC [48] LOG:  checkpoint starting: shutdown immediate
+2026-10-29T10:59:44.7005078Z  2026-10-29 10:59:04.718 UTC [48] LOG:  checkpoint complete: wrote 926 buffers (5.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.133 s, sync=0.022 s, total=0.156 s; sync files=301, longest=0.019 s, average=0.001 s; distance=4273 kB, estimate=4273 kB; lsn=0/191F0E0, redo lsn=0/191F0E0
+2026-10-29T10:59:44.7005863Z  2026-10-29 10:59:04.725 UTC [47] LOG:  database system is shut down
+2026-10-29T10:59:44.7006120Z   done
+2026-10-29T10:59:44.7006286Z  server stopped
+2026-10-29T10:59:44.7006449Z  
+2026-10-29T10:59:44.7006644Z  PostgreSQL init process complete; ready for start up.
+2026-10-29T10:59:44.7006926Z  
+2026-10-29T10:59:44.7012094Z Stop and remove container: ac8fb59f7f3a405782841244ce79516c_postgres16_e9395c
+2026-10-29T10:59:44.7016967Z ##[command]/usr/bin/docker rm --force 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:45.1629707Z 02456b495833e99498274de0cd0a7347418ea908fe2d2fac5d41d1713a3e1e1d
+2026-10-29T10:59:45.1668585Z Remove container network: github_network_1dd1e64ca08b4149b8cae3a511ce3ab5
+2026-10-29T10:59:45.1672607Z ##[command]/usr/bin/docker network rm github_network_1dd1e64ca08b4149b8cae3a511ce3ab5
+2026-10-29T10:59:45.2381591Z github_network_1dd1e64ca08b4149b8cae3a511ce3ab5
+2026-10-29T10:59:45.2453065Z Cleaning up orphan processes
+
+
+Hasil pembacaan artefak:
+  Bacaan Run Experiment 02 (run 40861765376)
+
+  Bacaan ini hanya berlaku untuk fixture 100.000 baris sintetis, PostgreSQL 16.15, satu writer
+  berurutan, tanpa replica dan tanpa pod paralel. Hasilnya tidak boleh diekstrapolasi ke 120M baris.
+
+  Saya sudah menyatakan NO-GO untuk run ini. Perbaikan #1 (kriteria "prediksi salah jika…"), #2
+  (durasi tiap percobaan), #3 (cek race backfill), dan #5 belum diterapkan. Karena itu, anggap hasil
+  ini eksploratif. Ia tidak bisa membantah atau mengonfirmasi prediksi secara formal. Raw output-nya
+  tetap sah sebagai bukti.
+
+  Verifikasi provenance (RAN, oleh saya, dari zip di Downloads)
+
+  - SHA256 zip adalah 2FCF6F11…8D035, ukuran 10303 byte. Nilai ini sama dengan digest di log job
+  (2fcf6f11…d035).
+  - Artifact berisi 16 file, sesuai harapan: runner-rig.log, experiment-02.log, 4 file lock-control,
+  dan 5 file per mode untuk 2 mode. Tidak ada sisa file lama.
+  - COMMIT_SHA adalah 11761d3…. SCRIPT_SHA256 adalah 70d2578f…, dan WORKFLOW_SHA256 adalah 6b58d2db….
+  Ketiganya sama dengan hash langkah sebelumnya.
+  - Image Postgres tercatat sebagai postgres@sha256:1beaa308…c61c. Ini lebih baik dari Experiment 01
+  karena digest masuk artifact.
+  - SCRIPT_EXIT_STATUS=0, REVIEWED_BY=Nabiel.
+
+  Hasil per bagian
+
+  Positive control lock (RAN):
+
+  - Holder (pid 80) memegang ACCESS EXCLUSIVE selama 2 detik.
+  - Writer mendapat canceling statement due to lock timeout.
+  - Observer mencetak 3 baris, misalnya
+  wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}.
+  - Artinya observer valid: ia bisa melihat lock yang menunggu.
+  - Sintaks \watch interval=0.1 count=100 berjalan di psql runner ini, jadi kekhawatiran #5 tidak
+  terjadi. Versi psql tetap tidak tercatat.
+
+  Mode transaksi (RAN):
+
+  - Migration berjalan sekitar 1,07 detik (21,937 → 23,004).
+  - Waktu per langkah di dalam transaksi:
+
+  ┌────────────────────────┬──────────┐
+  │ Langkah                │ Waktu    │
+  ├────────────────────────┼──────────┤
+  │ ADD COLUMN             │ 0,85 ms  │
+  ├────────────────────────┼──────────┤
+  │ UPDATE (100.001 baris) │ 529,9 ms │
+  ├────────────────────────┼──────────┤
+  │ CREATE INDEX           │ 236,6 ms │
+  ├────────────────────────┼──────────┤
+  │ RENAME                 │ 0,19 ms  │
+  ├────────────────────────┼──────────┤
+  │ ADD CONSTRAINT         │ 8,8 ms   │
+  ├────────────────────────┼──────────┤
+  │ COMMIT                 │ 247,4 ms │
+  └────────────────────────┴──────────┘
+
+  - ADD COLUMN mengambil ACCESS EXCLUSIVE di awal, dan lock itu dipegang sampai COMMIT. Dari log step,
+  itu sekitar 1,03 detik.
+  - Writer: 1 INSERTED (sebelum migration), 2 LOCK_TIMEOUT (percobaan 2 dan 3, saat migration
+  berjalan), lalu 22 OLD_COLUMN_MISSING.
+  - Percobaan 4 menunggu lock dan baru gagal setelah COMMIT dengan error kolom amount (server log
+  22,997). Jadi INSERT lama yang menunggu bisa berakhir gagal, bukan berhasil.
+  - Observer mencatat 8 sampel LOCK_WAIT, dengan pemblokir pid 106 (backend migration).
+  - Seluruh 24 INSERT yang gagal dihitung dengan benar. all_rows_accounted_for_transaction = 100001.
+
+  Mode autocommit (RAN):
+
+  - Migration berjalan sekitar 1,05 detik. UPDATE memakan 810 ms dan CREATE INDEX 185,7 ms.
+  - Writer: 5 INSERTED, 0 LOCK_TIMEOUT, 20 OLD_COLUMN_MISSING. Observer mencatat 0 sampel lock.
+  - Tiga INSERT (percobaan 2–4) selesai selama UPDATE, sesuai harapan karena UPDATE hanya mengambil
+  row lock, yang kompatibel dengan INSERT.
+  - Selisih waktu antar percobaan selama UPDATE sekitar 0,22–0,34 detik, dibanding sekitar 0,137 detik
+  di kondisi normal. INSERT tampak melambat saat UPDATE berjalan. Penyebabnya (CPU 2 core, I/O, atau
+  lock) tidak bisa dipisahkan dari log ini. Ini TIDAK TERVERIFIKASI sebagai kesimpulan.
+  - Percobaan 5 selesai pada 33,5235, tepat setelah CREATE INDEX selesai (33,519). Kemungkinan ia
+  sempat menunggu SHARE lock dari CREATE INDEX sekitar 100 ms, lalu berhasil sebelum rename. Observer
+  0 sampel bisa berarti tidak menunggu atau terlewat oleh sampling 0,1 detik. Tanpa durasi per
+  percobaan (#2), saya tidak bisa membedakannya.
+
+  Yang dibuktikan dan yang tidak
+
+  (i) Dibuktikan (RAN, pada skala 100k):
+
+  1. Pada migration dalam satu transaksi, INSERT dari aplikasi lama diblokir oleh lock tabel selama
+  sebagian besar migration (±1 detik di sini), lalu gagal setelah rename. Prediksi risiko lock saya
+  terkonfirmasi pada skala kecil.
+  2. Pada autocommit per statement, tidak ada blokir panjang. Hasilnya tetap sama: INSERT lama gagal
+  permanen setelah rename. Menghindari lock tidak menyelamatkan pod lama.
+  3. Observer lock bekerja pada positive control.
+  4. ADD COLUMN … DEFAULT 'USD' sendiri hanya 0,85 ms (RAN). Bagian yang lama adalah UPDATE, CREATE
+  INDEX, dan lamanya transaksi yang membungkusnya.
+  5. Ukuran database naik dari 15,24 MB menjadi 29,42 MB (transaksi) dan dari 15,26 MB menjadi 26,73
+  MB (autocommit). Delta WAL adalah 29,31 MB dan 27,69 MB. Angka WAL mencakup aktivitas writer.
+
+  (ii) Menguatkan atau mengubah baseline:
+
+  - Menguatkan verdict TOLAK dengan alasan ketiga yang sekarang berbasis RAN skala kecil. Alasan
+  ketiga itu adalah blocking INSERT saat migration berada dalam transaksi.
+  - Menambah temuan yang belum ada di baseline: autocommit membuka race backfill. Baris yang di-INSERT
+  setelah snapshot UPDATE tidak ikut di-update dan mendapat default USD. Fixture memakai country='DE',
+  jadi baris seperti itu seharusnya EUR. Dari timestamp, paling sedikit 3 dari 4 baris writer yang
+  masuk setelah ADD COLUMN (percobaan 3, 4, 5) lahir setelah snapshot UPDATE. Ini TIDAK TERVERIFIKASI:
+  script tidak mengecek currency baris-baris itu dan database sudah hilang.
+
+  (iii) Belum dibuktikan:
+
+  - Durasi blokir yang sebenarnya. lock_timeout=250ms memotong tunggu, dan tidak ada durasi per
+  percobaan. Angka 1,03 detik adalah lama transaksi, bukan lama blokir yang dialami satu INSERT.
+  - Skala. Satu ukuran saja, jadi tidak ada dasar menyebut waktu linear terhadap jumlah baris. Angka
+  seperti ±293 byte WAL per baris di sini tidak boleh dikali ke 120M baris.
+  - Replica lag, 800 insert/detik, 6 pod, mode transaksi runner production, dan versi PG production.
+  Semuanya NOT RUN.
+  - Race backfill (di atas).
+  - p99 insert. Prediksi di Baseline-User.md:16 memuat syarat p99. Syarat "tanpa Lock wait" tidak
+  terpenuhi di mode transaksi (ada wait), tetapi p99 tidak diukur, jadi prediksi itu tidak bisa
+  dinilai utuh.
+
+  Saran lanjutan
+
+  1. Tulis kriteria "prediksi salah jika…" khusus 100k sekarang, sebelum run berikutnya. Karena hasil
+  sudah terlihat, tandai kriteria itu sebagai ditulis setelah run pertama, jangan seolah-olah ditulis
+  sebelumnya.
+  2. Terapkan #2 (durasi per percobaan dan writer tanpa lock_timeout) dan #3 (cek country='DE' AND
+  currency<>'EUR' per mode). Keduanya akan menjawab dua hal yang kini tak terjawab.
+  3. Arsipkan zip ini tanpa diubah di evidence/experiment-02/40861765376/, bersama zip Run 04. Saya
+  belum menyalin apa pun ke repo. Saya akan tunjukkan diff dan minta persetujuan Anda sebelum
+  menyentuh repo.
+
+  Interpretasi akhir tetap tugas Anda. Bacaan di atas hanya masukan.

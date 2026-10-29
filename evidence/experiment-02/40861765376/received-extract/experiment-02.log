@@ -1,0 +1,511 @@
+EXPERIMENT=02 LOCK_AND_BOUNDED_WRITER_CALIBRATION
+DATA=100000 deterministic synthetic invoices; no external data
+SCOPE=transaction and per-statement-commit simulations; actual migration runner remains UNKNOWN
+WRITER=25 old-schema insert attempts, lock_timeout=250ms, sleep=100ms between attempts; not an 800 inserts/s benchmark
+SAFETY_GUARD=environment check only; not a security boundary
+                                                       version                                                        
+----------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+(1 row)
+
+LOCK_OBSERVER_POSITIVE_CONTROL=begin
+NOTICE:  table "invoices" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+INSERT 0 100000
+ASSERTION_PASS calibration_seed_rows value=<100000>
+SET
+ERROR:  canceling statement due to lock timeout
+LINE 1: SET lock_timeout = '250ms'; INSERT INTO invoices (id, countr...
+                                                ^
+Output format is unaligned.
+Pager usage is off.
+OBSERVER_READY
+LOCK_WAIT|app=week4-lock-control-writer|pid=83|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+LOCK_WAIT|app=week4-lock-control-writer|pid=83|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+LOCK_WAIT|app=week4-lock-control-writer|pid=83|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={80}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200001, 'DE', 10.00);
+
+ASSERTION_PASS lock_control_writer=timeout
+ASSERTION_PASS lock_observer=observed_ungranted_lock
+MODE_BEGIN=transaction
+DROP TABLE
+CREATE TABLE
+INSERT 0 100000
+ASSERTION_PASS calibration_seed_rows value=<100000>
+DATABASE_SIZE_BEFORE_BYTES mode=transaction value=15244311
+WAL_LSN_BEFORE mode=transaction value=0/3542270
+RUNNER_SNAPSHOT=before-transaction time=2026-10-29T10:59:21Z
+CPU_COUNT=2
+MemTotal:        8122984 kB
+MemAvailable:    7179808 kB
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root        72G   60G   13G  83% /
+MIGRATION_START mode=transaction time=2026-10-29T10:59:21.937127119Z
+MIGRATION_EXIT mode=transaction status=0 time=2026-10-29T10:59:23.003932108Z
+Timing is on.
+BEGIN
+Time: 0.174 ms
+STEP_START add_currency
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:21.971629+00
+(1 row)
+
+Time: 0.338 ms
+ALTER TABLE
+Time: 0.853 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:21.972672+00
+(1 row)
+
+Time: 0.121 ms
+STEP_END add_currency
+STEP_START update_currency
+       clock_timestamp        
+------------------------------
+ 2026-10-29 10:59:21.97282+00
+(1 row)
+
+Time: 0.133 ms
+UPDATE 100001
+Time: 529.903 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.503031+00
+(1 row)
+
+Time: 0.192 ms
+STEP_END update_currency
+STEP_START create_index
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.503171+00
+(1 row)
+
+Time: 0.097 ms
+CREATE INDEX
+Time: 236.617 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.740012+00
+(1 row)
+
+Time: 0.160 ms
+STEP_END create_index
+STEP_START rename_amount
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.740156+00
+(1 row)
+
+Time: 0.096 ms
+ALTER TABLE
+Time: 0.185 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.740483+00
+(1 row)
+
+Time: 0.106 ms
+STEP_END rename_amount
+STEP_START add_check
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.740608+00
+(1 row)
+
+Time: 0.101 ms
+ALTER TABLE
+Time: 8.778 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:22.749541+00
+(1 row)
+
+Time: 0.126 ms
+STEP_END add_check
+COMMIT
+Time: 247.380 ms
+WRITER_RESULT mode=transaction attempt=1 time=2026-10-29T10:59:21.860509051Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=transaction attempt=2 time=2026-10-29T10:59:22.263775725Z result=LOCK_TIMEOUT psql_exit=1
+SET
+ERROR:  canceling statement due to lock timeout
+LINE 1: SET lock_timeout = '250ms'; INSERT INTO invoices (id, countr...
+                                                ^
+WRITER_RESULT mode=transaction attempt=3 time=2026-10-29T10:59:22.655781025Z result=LOCK_TIMEOUT psql_exit=1
+SET
+ERROR:  canceling statement due to lock timeout
+LINE 1: SET lock_timeout = '250ms'; INSERT INTO invoices (id, countr...
+                                                ^
+WRITER_RESULT mode=transaction attempt=4 time=2026-10-29T10:59:23.009170893Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=5 time=2026-10-29T10:59:23.146230426Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=6 time=2026-10-29T10:59:23.297503165Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=7 time=2026-10-29T10:59:23.434174513Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=8 time=2026-10-29T10:59:23.570998015Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=9 time=2026-10-29T10:59:23.707720255Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=10 time=2026-10-29T10:59:23.846259486Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=11 time=2026-10-29T10:59:23.983923607Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=12 time=2026-10-29T10:59:24.121700167Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=13 time=2026-10-29T10:59:24.258091327Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=14 time=2026-10-29T10:59:24.394444260Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=15 time=2026-10-29T10:59:24.530920458Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=16 time=2026-10-29T10:59:24.666828720Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=17 time=2026-10-29T10:59:24.802834143Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=18 time=2026-10-29T10:59:24.941181315Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=19 time=2026-10-29T10:59:25.076849454Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=20 time=2026-10-29T10:59:25.213454972Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=21 time=2026-10-29T10:59:25.349966339Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=22 time=2026-10-29T10:59:25.485942743Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=23 time=2026-10-29T10:59:25.623044516Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=24 time=2026-10-29T10:59:25.759795123Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=transaction attempt=25 time=2026-10-29T10:59:25.896811176Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+Output format is unaligned.
+Pager usage is off.
+OBSERVER_READY
+LOCK_WAIT|app=week4-writer-transaction|pid=107|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=107|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=107|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=108|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=108|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106,106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=108|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106,106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=110|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200004, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=110|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200004, 'DE', 10.00);
+
+ASSERTION_PASS writer_attempts_transaction value=<25>
+ASSERTION_PASS writer_unexpected_errors_transaction value=<0>
+WRITER_SUMMARY mode=transaction attempted=25 inserted=1 lock_timeout=2 old_column_missing=22
+OBSERVER_LOCK_SAMPLE_COUNT mode=transaction value=8
+ASSERTION_PASS all_rows_accounted_for_transaction value=<100001>
+ROW_COUNT_AFTER mode=transaction value=100001
+DATABASE_SIZE_AFTER_BYTES mode=transaction value=29424663
+WAL_LSN_DELTA_BYTES mode=transaction value=29310352 (includes concurrent writer activity)
+RUNNER_SNAPSHOT=after-transaction time=2026-10-29T10:59:31Z
+CPU_COUNT=2
+MemTotal:        8122984 kB
+MemAvailable:    7172432 kB
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root        72G   60G   13G  83% /
+MODE_END=transaction
+MODE_BEGIN=autocommit
+DROP TABLE
+CREATE TABLE
+INSERT 0 100000
+ASSERTION_PASS calibration_seed_rows value=<100000>
+DATABASE_SIZE_BEFORE_BYTES mode=autocommit value=15260695
+WAL_LSN_BEFORE mode=autocommit value=0/5F37958
+RUNNER_SNAPSHOT=before-autocommit time=2026-10-29T10:59:32Z
+CPU_COUNT=2
+MemTotal:        8122984 kB
+MemAvailable:    7172292 kB
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root        72G   60G   13G  83% /
+MIGRATION_START mode=autocommit time=2026-10-29T10:59:32.486534598Z
+MIGRATION_EXIT mode=autocommit status=0 time=2026-10-29T10:59:33.536762721Z
+Timing is on.
+STEP_START add_currency
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:32.521179+00
+(1 row)
+
+Time: 0.439 ms
+ALTER TABLE
+Time: 1.085 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:32.522485+00
+(1 row)
+
+Time: 0.131 ms
+STEP_END add_currency
+STEP_START update_currency
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:32.522635+00
+(1 row)
+
+Time: 0.113 ms
+UPDATE 100001
+Time: 810.200 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:33.333084+00
+(1 row)
+
+Time: 0.181 ms
+STEP_END update_currency
+STEP_START create_index
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:33.333229+00
+(1 row)
+
+Time: 0.107 ms
+CREATE INDEX
+Time: 185.671 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:33.519175+00
+(1 row)
+
+Time: 0.212 ms
+STEP_END create_index
+STEP_START rename_amount
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:33.519338+00
+(1 row)
+
+Time: 0.109 ms
+ALTER TABLE
+Time: 0.598 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:33.520095+00
+(1 row)
+
+Time: 0.124 ms
+STEP_END rename_amount
+STEP_START add_check
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:33.522574+00
+(1 row)
+
+Time: 2.483 ms
+ALTER TABLE
+Time: 10.388 ms
+        clock_timestamp        
+-------------------------------
+ 2026-10-29 10:59:33.533243+00
+(1 row)
+
+Time: 0.204 ms
+STEP_END add_check
+WRITER_RESULT mode=autocommit attempt=1 time=2026-10-29T10:59:32.409629641Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=2 time=2026-10-29T10:59:32.750059727Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=3 time=2026-10-29T10:59:33.058759019Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=4 time=2026-10-29T10:59:33.303459943Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=5 time=2026-10-29T10:59:33.523484621Z result=INSERTED psql_exit=0
+SET
+INSERT 0 1
+WRITER_RESULT mode=autocommit attempt=6 time=2026-10-29T10:59:33.660946621Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=7 time=2026-10-29T10:59:33.798305285Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=8 time=2026-10-29T10:59:33.934672620Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=9 time=2026-10-29T10:59:34.071384949Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=10 time=2026-10-29T10:59:34.207731091Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=11 time=2026-10-29T10:59:34.345054077Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=12 time=2026-10-29T10:59:34.483058545Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=13 time=2026-10-29T10:59:34.620457779Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=14 time=2026-10-29T10:59:34.756496229Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=15 time=2026-10-29T10:59:34.902268878Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=16 time=2026-10-29T10:59:35.039271318Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=17 time=2026-10-29T10:59:35.175967986Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=18 time=2026-10-29T10:59:35.313704865Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=19 time=2026-10-29T10:59:35.451108626Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=20 time=2026-10-29T10:59:35.588521175Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=21 time=2026-10-29T10:59:35.725937885Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=22 time=2026-10-29T10:59:35.863078909Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=23 time=2026-10-29T10:59:35.999952690Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=24 time=2026-10-29T10:59:36.136726846Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+WRITER_RESULT mode=autocommit attempt=25 time=2026-10-29T10:59:36.274391340Z result=OLD_COLUMN_MISSING psql_exit=1
+SET
+ERROR:  column "amount" of relation "invoices" does not exist
+LINE 1: ...out = '250ms'; INSERT INTO invoices (id, country, amount) VA...
+                                                             ^
+Output format is unaligned.
+Pager usage is off.
+OBSERVER_READY
+
+ASSERTION_PASS writer_attempts_autocommit value=<25>
+ASSERTION_PASS writer_unexpected_errors_autocommit value=<0>
+WRITER_SUMMARY mode=autocommit attempted=25 inserted=5 lock_timeout=0 old_column_missing=20
+OBSERVER_LOCK_SAMPLE_COUNT mode=autocommit value=0
+ASSERTION_PASS all_rows_accounted_for_autocommit value=<100005>
+ROW_COUNT_AFTER mode=autocommit value=100005
+DATABASE_SIZE_AFTER_BYTES mode=autocommit value=26729495
+WAL_LSN_DELTA_BYTES mode=autocommit value=27689640 (includes concurrent writer activity)
+RUNNER_SNAPSHOT=after-autocommit time=2026-10-29T10:59:42Z
+CPU_COUNT=2
+MemTotal:        8122984 kB
+MemAvailable:    7180200 kB
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root        72G   60G   13G  83% /
+MODE_END=autocommit
+ASSERTION_BATCH_COMPLETE experiment=02 seed_rows=100000 scale_up=NOT_RUN
+SCRIPT_EXIT_STATUS=0

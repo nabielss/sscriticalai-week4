@@ -1,0 +1,12 @@
+Output format is unaligned.
+Pager usage is off.
+OBSERVER_READY
+LOCK_WAIT|app=week4-writer-transaction|pid=107|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=107|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=107|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200002, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=108|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=108|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106,106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=108|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106,106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200003, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=110|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200004, 'DE', 10.00);
+LOCK_WAIT|app=week4-writer-transaction|pid=110|wait_event_type=Lock|wait_event=relation|mode=RowExclusiveLock|granted=false|blockers={106}|query=SET lock_timeout = '250ms'; INSERT INTO invoices (id, country, amount) VALUES (200004, 'DE', 10.00);
+
