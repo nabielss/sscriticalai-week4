@@ -105,6 +105,8 @@ SQL
   assert_eq "$amount_sum_after" "$amount_sum_before" 'amount_sum_after_down'
   check_constraints=$(psql_ci -Atc "SELECT count(*) FROM pg_constraint WHERE conrelid = 'invoices'::regclass AND conname = 'amount_nonneg';")
   assert_eq "$check_constraints" '1' 'amount_nonneg_constraint_persists_after_down'
+  currency_indexes=$(psql_ci -Atc "SELECT count(*) FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'invoices' AND indexname = 'invoices_currency_idx';")
+  assert_eq "$currency_indexes" '0' 'currency_index_removed_with_column'
   echo 'EXPECTED_FINDING currency_after_down=ABSENT; explicit currency value is not preserved by down()'
   echo 'EXPECTED_FINDING amount_nonneg_constraint_after_down=PRESENT; schema is not identical to pre-up state'
   echo 'RELEASE_GATE down_preserves_currency=FAIL (harness reproduced the defect)'

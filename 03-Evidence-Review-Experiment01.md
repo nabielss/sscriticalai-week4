@@ -40,7 +40,7 @@ The attached `old-query-after-rename.log` duplicates the corresponding Postgres 
 
 ### Index cleanup correction
 
-The run did **not** query `pg_indexes`, so index removal is not `OBSERVED`. PostgreSQL docs say `ALTER TABLE ... DROP COLUMN` automatically drops indexes and table constraints involving that column. Since `invoices_currency_idx` includes `currency`, it should be removed by `down()`; the absence of an explicit `DROP INDEX` is not itself a defect. Add one `pg_indexes` assertion to the next CI revision so this property is verified in the same fixture. Source: [PostgreSQL 16 ALTER TABLE](https://www.postgresql.org/docs/16/sql-altertable.html).
+The run did **not** query `pg_indexes`, so index removal is not `OBSERVED`. PostgreSQL docs say `ALTER TABLE ... DROP COLUMN` automatically drops indexes and table constraints involving that column. Since `invoices_currency_idx` includes `currency`, it should be removed by `down()`; the absence of an explicit `DROP INDEX` is not itself a defect. The current script revision adds one `pg_indexes` assertion; this remains `NOT RUN` until reviewed and triggered. Source: [PostgreSQL 16 ALTER TABLE](https://www.postgresql.org/docs/16/sql-altertable.html).
 
 The leftover `amount_nonneg` is different: it references the renamed amount column, not `currency`, so dropping `currency` does not drop that check. Its persistence is directly observed in this run.
 
@@ -63,11 +63,24 @@ The CI log observes 2 CPUs, about 7.75 GiB reported total memory and 13 GB free 
 
 Monthly Actions allowance/spend policy remains `UNKNOWN`; this workflow's first run does not reveal account quota. Keep jobs bounded and artifacts small until account usage/settings are checked.
 
+## Candidate repair direction — design only
+
+**HYPOTHESIS:** use an expand/contract sequence; do not run the submitted rename before app rollout.
+
+1. Keep `amount` during this release and introduce `currency` additively. Do not use a blanket USD default unless Finance confirms that every legacy insert omitting currency is USD.
+2. Obtain the authoritative invoice-currency rule first. If currency comes from a customer/product/pricing decision rather than country, it must be written by a compatible app path; a `country → currency` trigger is not a safe substitute. During old/new pod overlap, either old writers must be made currency-aware/dual-write through a compatibility release or a validated DB-side mechanism must fill currency. If neither is possible, the no-visible-downtime constraint and correct EUR/IDR billing cannot both be claimed safe.
+3. Backfill existing rows in bounded, idempotent batches with a persisted checkpoint and retry plan. Ensure concurrent inserts/updates are covered by the same authoritative write rule; compare row counts and currency totals before validation.
+4. Create an index only if the actual query pattern needs it; if needed on a live PostgreSQL table, build it in a separate `CREATE INDEX CONCURRENTLY` operation outside a transaction, with invalid-index cleanup/retry documented.
+5. Add/validate constraints after the data is correct. Keep the old column and compatible reads until every old app/dashboard consumer has moved. Make destructive rename/drop a later contract step after an explicit all-consumer gate, or omit the rename if there is no user-facing need.
+6. Prefer application rollback to a compatible version while preserving the additive data. Treat `down()` as schema cleanup only if it is proven not to erase required currency. Do not use this `down()` as an incident recovery action.
+
+**UNKNOWN blocking inputs:** source of truth for currency, all supported currencies/countries, old app insert/read SQL, dashboard SQL, actual migration transaction behavior, and whether column rename is a business requirement. No candidate is safe to implement until these are resolved by fixture evidence or an authorized owner answer.
+
 ## Next experiment proposal — lock and compatibility under writes
 
 **Goal:** distinguish transaction-scoped DDL lock retention from the blocking window of individual operations; do not test a fix yet.
 
-1. First Nabiel reviews [the committed harness source](scripts/experiment-01.sh) and workflow. The prior run's reviewer field is not evidence that every code line was personally inspected; manual script review must be recorded explicitly.
+1. First Nabiel reviews [the committed harness source](scripts/experiment-01.sh) and workflow, including the newly added but unrun `pg_indexes` assertion. The prior run's reviewer field is not evidence that every code line was personally inspected; manual script review must be recorded explicitly.
 2. Use isolated GitHub-hosted Actions Postgres with synthetic rows and the production-like column widths/indexes only where their parameters are known. Record seed, row size, DB size, WAL size, and full migration mode. Run on fresh fixtures for each mode/size.
 3. Test two modes because real runner semantics are unknown: **(A)** one transaction matching current harness; **(B)** each statement committed separately. Replace this with the actual runner behavior if its implementation/config becomes available. Never claim CI mode equals production runner without that evidence.
 4. Start a bounded writer that records attempt time, completion/error, and latency. Run `up()` concurrently. A separate observer polls `pg_stat_activity` and `pg_locks` for wait event, query, granted state, and wait duration. Put a short `lock_timeout` on the writer; preserve both successful and timed-out inserts. Verify row counts/currency after the run.
@@ -76,4 +89,4 @@ Monthly Actions allowance/spend policy remains `UNKNOWN`; this workflow's first 
 
 **Acceptance / stop:** positive control writer inserts before migration; at least one concurrent writer and observer are active during the operation; all intended probe attempts accounted for (no unexplained missing rows); metrics identify which statement blocks which operation; raw logs/artifact upload even on failure. Stop scale-up before free disk falls below the predeclared reserve or Actions timeout. Results describe the CI rig only; they do not prove production safety or zero downtime.
 
-No candidate fix has been selected or tested. After Nabiel reviews the script and chooses/approves this next scenario, prepare the bounded CI workflow revision and ask Nabiel to trigger it. Preserve the `down()` findings; do not run rollback as a production recovery recommendation.
+No candidate fix has been implemented or tested. After Nabiel reviews the script and chooses this next experiment, prepare the bounded CI workflow revision and ask Nabiel to trigger it. Preserve the `down()` findings; do not run rollback as a production recovery recommendation.
