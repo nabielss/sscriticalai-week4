@@ -1,6 +1,6 @@
 # Week 4 — diagnosis dan desain eksperimen pertama
 
-Status: dua CI correctness run sudah selesai (Run 01 `both`, Run 02 `rollback`); lock/traffic/scale tetap `NOT RUN`. Ini belum submission final.
+Status: tiga CI correctness run sudah selesai (Run 01 `both`, Run 02 `rollback`, Run 03 `both` dengan file hashes dan positive control index); lock/traffic/scale tetap `NOT RUN`. Ini belum submission final.
 
 ## Provenance
 
@@ -72,7 +72,7 @@ P99 spike dan `wait_event_type='Lock'` adalah falsifiable metric yang baik untuk
 - CI job boleh selesai dengan harness sukses bila kedua defect terdeteksi tepat dan positive controls lulus. Ringkasan job harus menyatakan **migration ditolak**; green job hanya berarti harness berhasil mereproduksi defect, bukan approval migration. Marker yang salah/missing harus membuat job gagal.
 - Simpan raw stdout/stderr dan exit code, bahkan bila job gagal; upload artifact pada `if: always()`.
 - Run card wajib isi: `SCRIPT_AUTHOR`, `TRIGGERED_BY`, `EXECUTED_ON`, `REVIEWED_BY`, `MANUAL_CHECK`, commit SHA, URL/job/attempt, tanggal & zona waktu, Postgres image/version, CPU/RAM/disk hasil ukur, seed/row count, command, artifact path, exit status, limitations. `MANUAL_CHECK` tetap `POST_RUN_REVIEW_PENDING` sampai Nabiel menulis cek dan interpretasinya setelah membaca artifact.
-- **Status sekarang:** compatibility gate diuji pada Run 01 (`99b21a4`); rollback gate diuji pada Run 01 dan Run 02 (`a579dc1`). Run 02 menemukan index count 0 setelah `down()`, tetapi belum memiliki positive-control index count sebelum `down()`. Perubahan script sekarang menambah guard target, pre/post index inspection, file hashes, dan upload log yang tersinkron; seluruh perubahan itu masih `NOT RUN`.
+- **Status sekarang:** Run 03 (`40851077057`, commit `c0e75af`) menjalankan `both`; rig-file hashes cocok dengan commit, old query gagal setelah rename, index count 1 sebelum dan 0 sesudah `down()`, currency hilang, dan constraint tertinggal. Arsip bersih berisi tiga file. Semua itu tetap bukti fixture 3 baris/PG 16.15. Uji old-app INSERT, transaksi runner aktual, concurrency, lock, scale/backfill, WAL, replica lag, dan recovery tetap `NOT RUN`.
 
 ## GitHub Actions kapasitas dan biaya: fakta dokumentasi vs pengukuran
 
@@ -83,4 +83,4 @@ P99 spike dan `wait_event_type='Lock'` adalah falsifiable metric yang baik untuk
 
 ## Gate berikutnya
 
-**Gate correctness sudah dilewati dengan batasan di atas. Gate berikutnya:** Nabiel meninjau revisi script/workflow terkini dan memicu `workflow_dispatch` untuk memverifikasi positive control index dan provenance baru, atau langsung menyetujui desain Experiment 02 setelah review. Experiment 02 akan menguji lock dengan writer pada runner Actions, dimulai dari fixture kalibrasi dan scale-up hanya jika disk headroom terukur mencukupi. Setelah itu barulah kandidat diuji; belum ada fix yang dijalankan.
+**Gate correctness awal sudah dilewati dengan batasan di atas. Gate berikutnya:** tambahkan pemeriksaan old-app `INSERT (amount)` yang belum diuji, lalu desain Experiment 02 untuk lock/writer pada runner Actions. Mulai dengan kalibrasi kecil; scale-up hanya setelah footprint DB+WAL dan disk reserve aktual dihitung. Nabiel memilih skenario, memeriksa revisi, memicu run, membaca output, lalu memberi interpretasi sendiri. Belum ada fix kandidat yang dijalankan.

@@ -1,6 +1,6 @@
 # Review Evidence — Experiment 01
 
-Status: two CI runs reviewed; no database work run locally. This review is AI-authored from the challenge, committed harness, both CI artifacts, and Nabiel's separately preserved interpretations and source review.
+Status: three CI runs reviewed; no database work run locally. This review is AI-authored from the challenge, committed harness, three CI artifacts, and Nabiel's separately preserved interpretations and source reviews.
 
 ## Run card
 
@@ -43,6 +43,33 @@ The attached `old-query-after-rename.log` duplicates the corresponding Postgres 
 
 Nabiel's post-run interpretation and source-level review are preserved in the transcript. It correctly points out the missing pre-down index count, literal verdict text, absent file hashes, locally unsafe `DROP TABLE` target, and output-log race. These findings are addressed in the current, unrun script/workflow revision. `REVIEWED_BY=Nabiel` means a human self-review was reported; it is not an independent second-person review.
 
+## Run 03 — both correctness scenarios and provenance, 2026-10-29
+
+| Field | Value |
+|---|---|
+| Run | [GitHub Actions run 40851077057](https://github.com/nabielss/sscriticalai-week4/actions/runs/40851077057), attempt 1 |
+| Commit | `c0e75af5e842348f98aac833c2de25e430d559bb` |
+| Scenario / actor | `both`; triggered by `nabielss` |
+| SCRIPT_AUTHOR / EXECUTED_ON | Codex (AI assistant) / GitHub-hosted Linux X64 (`GitHub Actions 1000000014`) |
+| Reviewer / manual check | Raw log says `REVIEWED_BY=Nabiel` and `MANUAL_CHECK=POST_RUN_REVIEW_PENDING`. Nabiel's supplied review, full Actions transcript, and post-run interpretation are preserved in [the Run 03 transcript](evidence/experiment-01/40851077057/Nabiel-run-review-transcript.txt). This documents a self-review and user-run review of raw results, not an independent second reviewer. |
+| Script/workflow identity | Rig-log SHA-256 values match the repository files at commit `c0e75af`: script `b1442f97202172949b18efaa7581e0c2e9ad55e9791c82082466698832bfccce`; workflow `846a5cd8f1fe879a745b22a92d212457414dcb99441eaed43aaece02f554b5e5`. |
+| Data / database | Three deterministic synthetic invoices; PostgreSQL 16.15; service image `postgres:16`, pulled digest `sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c` |
+| Runner facts | 2 CPUs; `MemTotal=8,122,984 kB`, `MemAvailable=7,137,744 kB`; `/dev/root` 72 GB total, 13 GB free at measurement. These are startup snapshots, not DB capacity guarantees. |
+| Raw artifacts | `evidence/experiment-01/40851077057/received-extract/` (three files) plus preserved original ZIP and user-supplied transcript. The uploaded ZIP SHA-256 matches the digest printed by the Actions upload step: `0dd1a05850cc03cb9d6a98d5076d9f145e81b6e64a1c99988009fcb8055d45e0`. |
+| Exit | `SCRIPT_EXIT_STATUS=0`; all scripted assertions completed. This is harness success, not migration approval. |
+
+**OBSERVED:** both prior correctness findings reproduced. The old `SELECT amount` succeeds before `up()` and fails after the rename. Postgres service logs in the supplied full Actions transcript independently show the server-side missing-column error and exact statement; this corroborates the client capture but is still the same run/environment.
+
+**OBSERVED with positive control:** `pg_indexes` returns one `invoices_currency_idx` row before `down()` and prints its raw definition (`CREATE INDEX ... USING btree (currency, created_at)`); after `down()`, the catalog query returns `(0 rows)` and the assertion count is 0. This closes the pre/post index evidence gap from Run 02.
+
+**OBSERVED:** after `down()`, `currency_column_after_down=0`, `amount_column_after_down=1`, `amount_sum_after_down=60.00`, and `amount_nonneg_constraint_persists_after_down=1`. An explicit synthetic EUR override on the US fixture row was present before `down()`. The sum assertion does not verify every amount row.
+
+**Provenance cross-check:** I compared the SHA-256 values in the rig artifact with the checked-out files at the logged commit and computed the downloaded ZIP SHA-256; all match Nabiel's supplied report. The extracted ZIP contains three files and no older-run files. The uploaded archive digest match establishes byte identity with the supplied download, not independent GitHub attestation. The repo tree at `c0e75af` has no tracked `artifacts/` entries; the clean Run 03 artifact is consistent with that fact. The workflow's `mkdir -p artifacts` does not clear existing files if a workspace is reused.
+
+**Contribution boundary:** Actions records `TRIGGERED_BY=nabielss`; I record this as a user-triggered CI run. `SCRIPT_AUTHOR` remains AI. The pasted review and result interpretation are Nabiel-authored user contributions; the raw artifact's pending marker remains unchanged.
+
+**Still NOT RUN:** old-app `INSERT (amount)` after rename; concurrent traffic/lock measurement; scale/backfill/WAL/replica impact; partial failure/resume; and production migration-runner behavior. The harness wraps both `up()` and `down()` in transactions, while the real runner behavior is unknown. Run 03 establishes correctness defects on a three-row PostgreSQL 16.15 fixture, not production timing or lock impact.
+
 ## Observations and inference
 
 ### Compatibility
@@ -61,7 +88,7 @@ Nabiel's post-run interpretation and source-level review are preserved in the tr
 
 ### Index cleanup correction
 
-Run 01 did not query `pg_indexes`. Run 02 observed zero after `down()`; `CREATE INDEX` had succeeded earlier in the same scenario, but the pre-down count was not queried. PostgreSQL docs say `ALTER TABLE ... DROP COLUMN` automatically drops indexes and table constraints involving that column. The absence of an explicit `DROP INDEX` is not itself a defect. The current script revision adds the requested pre/post count and raw index-definition output; it remains `NOT RUN` until reviewed and triggered. Source: [PostgreSQL 16 ALTER TABLE](https://www.postgresql.org/docs/16/sql-altertable.html).
+Run 03 directly observed `invoices_currency_idx` count 1 plus its index definition after `up()`, then count 0 after `down()`. PostgreSQL docs say `ALTER TABLE ... DROP COLUMN` automatically drops indexes and table constraints involving that column. The absence of an explicit `DROP INDEX` is not itself a defect. Source: [PostgreSQL 16 ALTER TABLE](https://www.postgresql.org/docs/16/sql-altertable.html).
 
 The leftover `amount_nonneg` is different: it references the renamed amount column, not `currency`, so dropping `currency` does not drop that check. Its persistence is directly observed in this run.
 
@@ -101,7 +128,7 @@ Monthly Actions allowance/spend policy remains `UNKNOWN`; this workflow's first 
 
 **Goal:** distinguish transaction-scoped DDL lock retention from the blocking window of individual operations; do not test a fix yet.
 
-1. Nabiel has now supplied a source-level review in the run transcript. The current code has since changed to address that review; inspect the latest [harness](scripts/experiment-01.sh) and workflow before the next dispatch. The run's reviewer field alone does not establish the exact reviewed commit; the revised workflow records script/workflow SHA-256.
+1. Run 03 closes the positive-control/provenance gate for the current revision: hashes match the committed script/workflow, and Nabiel supplied a source review and post-run interpretation. His transcript flags the missing old-app INSERT case; add that bounded correctness assertion before the next dispatch, then record the revised identity and review. A reviewer input alone does not substitute for the review record.
 2. Use isolated GitHub-hosted Actions Postgres with synthetic rows and the production-like column widths/indexes only where their parameters are known. Record seed, row size, DB size, WAL size, and full migration mode. Run on fresh fixtures for each mode/size.
 3. Test two modes because real runner semantics are unknown: **(A)** one transaction matching current harness; **(B)** each statement committed separately. Replace this with the actual runner behavior if its implementation/config becomes available. Never claim CI mode equals production runner without that evidence.
 4. Start a bounded writer that records attempt time, completion/error, and latency. Run `up()` concurrently. A separate observer polls `pg_stat_activity` and `pg_locks` for wait event, query, granted state, and wait duration. Put a short `lock_timeout` on the writer; preserve both successful and timed-out inserts. Verify row counts/currency after the run.
@@ -110,4 +137,4 @@ Monthly Actions allowance/spend policy remains `UNKNOWN`; this workflow's first 
 
 **Acceptance / stop:** positive control writer inserts before migration; at least one concurrent writer and observer are active during the operation; all intended probe attempts accounted for (no unexplained missing rows); metrics identify which statement blocks which operation; raw logs/artifact upload even on failure. Stop scale-up before free disk falls below the predeclared reserve or Actions timeout. Results describe the CI rig only; they do not prove production safety or zero downtime.
 
-No candidate fix has been implemented or tested. After Nabiel reviews the script and chooses this next experiment, prepare the bounded CI workflow revision and ask Nabiel to trigger it. Preserve the `down()` findings; do not run rollback as a production recovery recommendation.
+No candidate fix has been implemented or tested. Before Experiment 02, add the old-app `INSERT (amount)` assertion because it is a direct gap identified in Nabiel's review. Then prepare the bounded CI lock experiment; Nabiel chooses and triggers the CI run. Preserve the `down()` findings; do not run rollback as a production recovery recommendation.

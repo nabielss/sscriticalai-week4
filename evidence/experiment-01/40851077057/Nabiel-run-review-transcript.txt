@@ -1,0 +1,648 @@
+Script dan workflow di commit `c0e75af` layak dijalankan sebagai Run 03 (`both`), dengan satu perbaikan kecil di workflow yang sebaiknya masuk sebelum dispatch (poin 3). Itu hasil dari membaca dan menjalankan file yang Anda unggah, bukan dari repo. Repo Anda privat, jadi saya tidak bisa membuka `c0e75af` dan membandingkannya (poin 4).
+
+## 1. Yang saya uji langsung
+
+Ini pra-uji saya di sandbox: Postgres 16.15 build Ubuntu (bukan container CI), data sintetis, dijalankan oleh saya. Jangan dicatat sebagai bukti rig Anda.
+
+- **Sintaks dan lint:** `bash -n` lolos, `shellcheck` bersih, YAML ter-parse, tidak ada CRLF.
+- **Guard koneksi:** tanpa env CI atau dengan `PGDATABASE` salah, script keluar dengan kode 3. Ini pengaman agar tidak salah target. Bukan batas keamanan, karena env `GITHUB_ACTIONS` bisa dipalsukan. Saya sendiri melakukannya untuk menjalankan script di sandbox.
+- **Scenario `both` lewat wrapper step dari workflow:** semua assertion lolos.
+  - Positive control index: sebelum `down()` bernilai 1, dan `indexdef` mentahnya tercetak (`btree (currency, created_at)`).
+  - Setelah `down()`: `(0 rows)`.
+- **Propagasi gagal:** scenario tidak valid memberi exit 2, wrapper ikut exit 2, dan `SCRIPT_EXIT_STATUS=2` tercatat di log. Assertion yang disabotase mencetak `ASSERTION_FAILED`.
+- **`reviewed_by`:** kosong atau hanya spasi membuat step gagal. Newline dan CRLF diratakan jadi satu baris, sehingga tidak bisa menyisipkan baris `MANUAL_CHECK=` palsu.
+- **Pin action:** `git ls-remote` menunjukkan tag `v7.0.1` (checkout) dan `v7.0.2` (upload-artifact) memang menunjuk ke SHA yang dipin.
+
+Perbaikan atas keberatan saya sebelumnya juga ada: baris verdict literal diganti `OBSERVED ...`, race `SCRIPT_EXIT_STATUS` ditutup lewat `tee -a`, dan guard serta hash sudah masuk.
+
+## 2. Yang tidak bisa saya verifikasi
+
+Hanya bagian workflow di luar wrapper yang tidak saya jalankan, karena butuh runner GitHub. Itu mencakup `sha256sum` pada rig step dan upload artifact.
+
+## 3. Temuan: `artifacts/` belum dibersihkan
+
+Workflow hanya `mkdir -p artifacts`. Kalau ada file ter-track di `artifacts/` pada repo, pencampuran seperti di Run 02 bisa terulang. Saya tidak bisa melihat apakah "pemisahan arsip" sudah memindahkan semuanya. Dua opsi:
+
+```bash
+# awal rig step, sebelum mkdir
+rm -rf artifacts && mkdir -p artifacts
+```
+
+atau pindahkan bukti ke folder lain (misalnya `evidence/`) dan masukkan `artifacts/` ke `.gitignore`. Kalau Anda mengubah workflow, commit ulang dan hitung ulang hash.
+
+## 4. Provenance: yang harus Anda cocokkan
+
+Hash file yang Anda unggah:
+
+```
+scripts/experiment-01.sh                    b1442f97202172949b18efaa7581e0c2e9ad55e9791c82082466698832bfccce
+.github/workflows/week4-experiment-01.yml   846a5cd8f1fe879a745b22a92d212457414dcb99441eaed43aaece02f554b5e5
+```
+
+Setelah Run 03, bandingkan dengan `SCRIPT_SHA256` dan `WORKFLOW_SHA256` di `runner-rig.log`. Kalau cocok, file yang saya baca sama dengan yang dijalankan. Kalau tidak, ada versi lain yang berjalan.
+
+## 5. Catatan kecil, tidak menghalangi
+
+- **Tes INSERT lama belum ada.** Kompatibilitas baru diuji dengan `SELECT amount`. Jalur yang lebih berbahaya di production adalah `INSERT ... (amount)` dari pod lama, 800 kali per detik. Tambahkan satu assertion setelah `run_up`; ekspektasinya error `column "amount" of relation "invoices" does not exist`.
+- **Penamaan.** `ASSERTION_PASS old_query_after_rename=missing_column_error` berarti error yang diharapkan muncul, bukan "migration lolos". `ASSERTION_BATCH_COMPLETE` bisa terbaca sebagai persetujuan; nama yang lebih netral lebih aman.
+- **`down()` juga dibungkus transaksi.** Label di script hanya menyebut `up()`. `down()` asli adalah dua query terpisah.
+- **Hardening opsional:** `persist-credentials: false` pada checkout, dan catat digest image `postgres:16` ke artifact, karena sekarang hanya muncul di log konsol.
+
+## 6. Batas bukti, dan soal disk 13 GB
+
+Tidak ada yang berubah pada cakupan: 3 baris, tanpa konkurensi. Lock, backfill, dan skala tetap NOT RUN. Saya setuju dengan catatan Codex bahwa 13 GB bukan dasar untuk 120M baris (±180 GB). Untuk Eksperimen 02, mulai dari 1M dan 5M baris lalu ekstrapolasi dengan hati-hati. 20M baris berisiko mendekati batas disk, karena `UPDATE` menggandakan tuple dan menulis WAL.
+
+Saran saya: dispatch Run 03 setelah poin 3 beres, lalu pindahkan tenaga ke Eksperimen 02. Polesan harness lebih lanjut sudah memberi hasil yang makin kecil.
+
+Hasil run GitHub actions:
+2026-10-29T09:37:26.1824081Z Current runner version: '2.338.0'
+2026-10-29T09:37:26.1865586Z ##[group]Runner Image Provisioner
+2026-10-29T09:37:26.1867070Z Hosted Compute Agent
+2026-10-29T09:37:26.1868069Z Version: 20261021.618
+2026-10-29T09:37:26.1869378Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-10-29T09:37:26.1871073Z Build Date: 2026-10-21T00:45:21Z
+2026-10-29T09:37:26.1872578Z Worker ID: {45a4b8be-9c42-41eb-8483-39ae6c4ed274}
+2026-10-29T09:37:26.1873860Z Region: westus3
+2026-10-29T09:37:26.1874896Z Cloud: Azure
+2026-10-29T09:37:26.1875876Z ##[endgroup]
+2026-10-29T09:37:26.1878238Z ##[group]Operating System
+2026-10-29T09:37:26.1879576Z Ubuntu
+2026-10-29T09:37:26.1880918Z 24.04.5
+2026-10-29T09:37:26.1881854Z LTS
+2026-10-29T09:37:26.1882952Z ##[endgroup]
+2026-10-29T09:37:26.1883988Z ##[group]Runner Image
+2026-10-29T09:37:26.1885259Z Image: ubuntu-24.04
+2026-10-29T09:37:26.1886357Z Version: 20261025.353.1
+2026-10-29T09:37:26.1888586Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261025.353/images/ubuntu/Ubuntu2404-Readme.md
+2026-10-29T09:37:26.1891758Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261025.353
+2026-10-29T09:37:26.1894239Z ##[endgroup]
+2026-10-29T09:37:26.1896229Z ##[group]GITHUB_TOKEN Permissions
+2026-10-29T09:37:26.1911825Z Contents: read
+2026-10-29T09:37:26.1912849Z Metadata: read
+2026-10-29T09:37:26.1913728Z ##[endgroup]
+2026-10-29T09:37:26.1916830Z Secret source: Actions
+2026-10-29T09:37:26.1918285Z Cache mode: write
+2026-10-29T09:37:26.1919855Z Prepare workflow directory
+2026-10-29T09:37:26.2851458Z Prepare all required actions
+2026-10-29T09:37:26.2925483Z Getting action download info
+2026-10-29T09:37:26.7008784Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+2026-10-29T09:37:26.8326972Z Download action repository 'actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9' (SHA:cf430e030ddbb5b0abf93d22962f4752f3646cd9)
+2026-10-29T09:37:27.0285394Z Complete job name: Detect known migration defects (does not approve migration)
+2026-10-29T09:37:27.0886223Z ##[group]Checking docker version
+2026-10-29T09:37:27.0899458Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-10-29T09:37:27.2073762Z '1.48'
+2026-10-29T09:37:27.2085337Z Docker daemon API version: '1.48'
+2026-10-29T09:37:27.2086620Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-10-29T09:37:27.2343965Z '1.48'
+2026-10-29T09:37:27.2363285Z Docker client API version: '1.48'
+2026-10-29T09:37:27.2368197Z ##[endgroup]
+2026-10-29T09:37:27.2371732Z ##[group]Clean up resources from previous jobs
+2026-10-29T09:37:27.2377125Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=1a3705"
+2026-10-29T09:37:27.2572040Z ##[command]/usr/bin/docker network prune --force --filter "label=1a3705"
+2026-10-29T09:37:27.2779858Z ##[endgroup]
+2026-10-29T09:37:27.2780814Z ##[group]Create local container network
+2026-10-29T09:37:27.2791502Z ##[command]/usr/bin/docker network create --label 1a3705 github_network_c0775c16dfac4f03a2da86e0c6ee81d3
+2026-10-29T09:37:27.3682593Z dbc844cf379049fd4fbeb0292a6474ffbed239d32eecff70160da67d81644ab6
+2026-10-29T09:37:27.3692804Z ##[endgroup]
+2026-10-29T09:37:27.3729018Z ##[group]Starting postgres service container
+2026-10-29T09:37:27.3760788Z ##[command]/usr/bin/docker pull postgres:16
+2026-10-29T09:37:28.3372970Z 16: Pulling from library/postgres
+2026-10-29T09:37:28.5643846Z 6fc242d221a6: Pulling fs layer
+2026-10-29T09:37:28.5652175Z d06edb2e3f43: Pulling fs layer
+2026-10-29T09:37:28.5653326Z 3795839385bc: Pulling fs layer
+2026-10-29T09:37:28.5654271Z cea4f0db46a6: Pulling fs layer
+2026-10-29T09:37:28.5655339Z 9b1a18996a22: Pulling fs layer
+2026-10-29T09:37:28.5656258Z fbc84e711712: Pulling fs layer
+2026-10-29T09:37:28.5657168Z 879995175298: Pulling fs layer
+2026-10-29T09:37:28.5658240Z d89068781d71: Pulling fs layer
+2026-10-29T09:37:28.5659672Z 5c4d204f6daa: Pulling fs layer
+2026-10-29T09:37:28.5661238Z 28d8a96df569: Pulling fs layer
+2026-10-29T09:37:28.5662696Z b355a8fcc1d3: Pulling fs layer
+2026-10-29T09:37:28.5663765Z dc3e98153fd4: Pulling fs layer
+2026-10-29T09:37:28.5664771Z c60d02d02e9b: Pulling fs layer
+2026-10-29T09:37:28.5665768Z 7ee6ed8de1c8: Pulling fs layer
+2026-10-29T09:37:28.5666770Z d89068781d71: Waiting
+2026-10-29T09:37:28.5667875Z 5c4d204f6daa: Waiting
+2026-10-29T09:37:28.5668737Z 28d8a96df569: Waiting
+2026-10-29T09:37:28.5669572Z b355a8fcc1d3: Waiting
+2026-10-29T09:37:28.5671030Z dc3e98153fd4: Waiting
+2026-10-29T09:37:28.5671991Z c60d02d02e9b: Waiting
+2026-10-29T09:37:28.5672908Z 7ee6ed8de1c8: Waiting
+2026-10-29T09:37:28.5673827Z cea4f0db46a6: Waiting
+2026-10-29T09:37:28.5674786Z 9b1a18996a22: Waiting
+2026-10-29T09:37:28.5675721Z fbc84e711712: Waiting
+2026-10-29T09:37:28.5676680Z 879995175298: Waiting
+2026-10-29T09:37:28.7542186Z d06edb2e3f43: Verifying Checksum
+2026-10-29T09:37:28.7581529Z d06edb2e3f43: Download complete
+2026-10-29T09:37:28.8442686Z 3795839385bc: Verifying Checksum
+2026-10-29T09:37:28.8481044Z 3795839385bc: Download complete
+2026-10-29T09:37:28.9258850Z 6fc242d221a6: Verifying Checksum
+2026-10-29T09:37:28.9260989Z 6fc242d221a6: Download complete
+2026-10-29T09:37:28.9725368Z cea4f0db46a6: Verifying Checksum
+2026-10-29T09:37:28.9749720Z cea4f0db46a6: Download complete
+2026-10-29T09:37:29.0742090Z 9b1a18996a22: Verifying Checksum
+2026-10-29T09:37:29.0805809Z 9b1a18996a22: Download complete
+2026-10-29T09:37:29.1395729Z fbc84e711712: Verifying Checksum
+2026-10-29T09:37:29.1397428Z fbc84e711712: Download complete
+2026-10-29T09:37:29.1599955Z 879995175298: Verifying Checksum
+2026-10-29T09:37:29.1603978Z 879995175298: Download complete
+2026-10-29T09:37:29.2686090Z d89068781d71: Verifying Checksum
+2026-10-29T09:37:29.2692581Z d89068781d71: Download complete
+2026-10-29T09:37:29.3516655Z 28d8a96df569: Verifying Checksum
+2026-10-29T09:37:29.3527334Z 28d8a96df569: Download complete
+2026-10-29T09:37:29.4653022Z b355a8fcc1d3: Verifying Checksum
+2026-10-29T09:37:29.4653746Z b355a8fcc1d3: Download complete
+2026-10-29T09:37:29.5584100Z dc3e98153fd4: Verifying Checksum
+2026-10-29T09:37:29.5586072Z dc3e98153fd4: Download complete
+2026-10-29T09:37:29.6957758Z c60d02d02e9b: Verifying Checksum
+2026-10-29T09:37:29.6967077Z c60d02d02e9b: Download complete
+2026-10-29T09:37:29.7554555Z 7ee6ed8de1c8: Verifying Checksum
+2026-10-29T09:37:29.7562011Z 7ee6ed8de1c8: Download complete
+2026-10-29T09:37:29.8231339Z 5c4d204f6daa: Verifying Checksum
+2026-10-29T09:37:29.8233698Z 5c4d204f6daa: Download complete
+2026-10-29T09:37:30.5385633Z 6fc242d221a6: Pull complete
+2026-10-29T09:37:32.0821469Z d06edb2e3f43: Pull complete
+2026-10-29T09:37:32.3946528Z 3795839385bc: Pull complete
+2026-10-29T09:37:32.4632789Z cea4f0db46a6: Pull complete
+2026-10-29T09:37:32.8317766Z 9b1a18996a22: Pull complete
+2026-10-29T09:37:32.8998855Z fbc84e711712: Pull complete
+2026-10-29T09:37:32.9091711Z 879995175298: Pull complete
+2026-10-29T09:37:32.9187510Z d89068781d71: Pull complete
+2026-10-29T09:37:37.2184472Z 5c4d204f6daa: Pull complete
+2026-10-29T09:37:37.2359347Z 28d8a96df569: Pull complete
+2026-10-29T09:37:37.2489638Z b355a8fcc1d3: Pull complete
+2026-10-29T09:37:37.2693954Z dc3e98153fd4: Pull complete
+2026-10-29T09:37:37.2790485Z c60d02d02e9b: Pull complete
+2026-10-29T09:37:37.2878054Z 7ee6ed8de1c8: Pull complete
+2026-10-29T09:37:37.2924798Z Digest: sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+2026-10-29T09:37:37.2945110Z Status: Downloaded newer image for postgres:16
+2026-10-29T09:37:37.2963436Z docker.io/library/postgres:16
+2026-10-29T09:37:37.3040361Z ##[command]/usr/bin/docker create --name 756e62ce6e6941f0aba0d382ef163c72_postgres16_dcbec1 --label 1a3705 --network github_network_c0775c16dfac4f03a2da86e0c6ee81d3 --network-alias postgres -p 5432:5432 --health-cmd "pg_isready -U ci -d week4" --health-interval 5s --health-timeout 5s --health-retries 12 -e "POSTGRES_USER=ci" -e "POSTGRES_PASSWORD=synthetic-only" -e "POSTGRES_DB=week4" -e GITHUB_ACTIONS=true -e CI=true postgres:16
+2026-10-29T09:37:37.3355653Z fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:37.3384916Z ##[command]/usr/bin/docker start fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:37.6207976Z fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:37.6238010Z ##[command]/usr/bin/docker ps --all --filter id=fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4 --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-10-29T09:37:37.6493245Z fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4 Up Less than a second (health: starting)
+2026-10-29T09:37:37.6529824Z ##[command]/usr/bin/docker port fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:37.6750441Z 5432/tcp -> 0.0.0.0:5432
+2026-10-29T09:37:37.6771230Z 5432/tcp -> [::]:5432
+2026-10-29T09:37:37.6823361Z ##[endgroup]
+2026-10-29T09:37:37.6835814Z ##[group]Waiting for all services to be ready
+2026-10-29T09:37:37.6873682Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:37.7119737Z starting
+2026-10-29T09:37:37.7164073Z postgres service is starting, waiting 2 seconds before checking again.
+2026-10-29T09:37:39.7168158Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:39.7329212Z starting
+2026-10-29T09:37:39.7347563Z postgres service is starting, waiting 4 seconds before checking again.
+2026-10-29T09:37:44.0616170Z ##[command]/usr/bin/docker inspect --format="{{if .Config.Healthcheck}}{{print .State.Health.Status}}{{end}}" fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:44.0779671Z healthy
+2026-10-29T09:37:44.0802084Z postgres service is healthy.
+2026-10-29T09:37:44.0803133Z ##[endgroup]
+2026-10-29T09:37:44.1087241Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+2026-10-29T09:37:44.1087947Z with:
+2026-10-29T09:37:44.1088182Z   repository: nabielss/sscriticalai-week4
+2026-10-29T09:37:44.1090997Z   token: ***
+2026-10-29T09:37:44.1091211Z   ssh-strict: true
+2026-10-29T09:37:44.1091418Z   ssh-user: git
+2026-10-29T09:37:44.1091622Z   persist-credentials: true
+2026-10-29T09:37:44.1091855Z   clean: true
+2026-10-29T09:37:44.1092066Z   sparse-checkout-cone-mode: true
+2026-10-29T09:37:44.1092320Z   fetch-depth: 1
+2026-10-29T09:37:44.1092518Z   fetch-tags: false
+2026-10-29T09:37:44.1092726Z   show-progress: true
+2026-10-29T09:37:44.1092938Z   lfs: false
+2026-10-29T09:37:44.1093123Z   submodules: false
+2026-10-29T09:37:44.1093330Z   set-safe-directory: true
+2026-10-29T09:37:44.1093573Z   allow-unsafe-pr-checkout: false
+2026-10-29T09:37:44.1094053Z env:
+2026-10-29T09:37:44.1094242Z   PGHOST: 127.0.0.1
+2026-10-29T09:37:44.1094443Z   PGPORT: 5432
+2026-10-29T09:37:44.1094678Z   PGUSER: ci
+2026-10-29T09:37:44.1094878Z   PGPASSWORD: synthetic-only
+2026-10-29T09:37:44.1095118Z   PGDATABASE: week4
+2026-10-29T09:37:44.1095323Z   EXPERIMENT_SCENARIO: both
+2026-10-29T09:37:44.1095548Z   REVIEWED_BY: Nabiel
+2026-10-29T09:37:44.1095748Z ##[endgroup]
+2026-10-29T09:37:44.4886711Z Syncing repository: nabielss/sscriticalai-week4
+2026-10-29T09:37:44.4888704Z ##[group]Getting Git version info
+2026-10-29T09:37:44.4889460Z Working directory is '/home/runner/work/sscriticalai-week4/sscriticalai-week4'
+2026-10-29T09:37:44.4890864Z [command]/usr/bin/git version
+2026-10-29T09:37:44.5081050Z git version 2.56.0
+2026-10-29T09:37:44.5138596Z ##[endgroup]
+2026-10-29T09:37:44.5145689Z Temporarily overriding HOME='/home/runner/work/_temp/7093eea2-4eb1-487c-afad-4edde6a0005a' before making global git config changes
+2026-10-29T09:37:44.5147194Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T09:37:44.5148536Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sscriticalai-week4/sscriticalai-week4
+2026-10-29T09:37:44.5253904Z Deleting the contents of '/home/runner/work/sscriticalai-week4/sscriticalai-week4'
+2026-10-29T09:37:44.5255828Z ##[group]Determining repository object format
+2026-10-29T09:37:44.5256778Z ##[endgroup]
+2026-10-29T09:37:44.5257567Z ##[group]Initializing the repository
+2026-10-29T09:37:44.5258470Z [command]/usr/bin/git init /home/runner/work/sscriticalai-week4/sscriticalai-week4
+2026-10-29T09:37:44.5426420Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-10-29T09:37:44.5428326Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-10-29T09:37:44.5429354Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-10-29T09:37:44.5430369Z hint: call:
+2026-10-29T09:37:44.5430988Z hint:
+2026-10-29T09:37:44.5431677Z hint: 	git config --global init.defaultBranch <name>
+2026-10-29T09:37:44.5433101Z hint:
+2026-10-29T09:37:44.5433821Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-10-29T09:37:44.5434832Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-10-29T09:37:44.5435640Z hint:
+2026-10-29T09:37:44.5436169Z hint: 	git branch -m <name>
+2026-10-29T09:37:44.5436872Z hint:
+2026-10-29T09:37:44.5460916Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-10-29T09:37:44.5470799Z Initialized empty Git repository in /home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/
+2026-10-29T09:37:44.5473303Z [command]/usr/bin/git remote add origin https://github.com/nabielss/sscriticalai-week4
+2026-10-29T09:37:44.5611840Z ##[endgroup]
+2026-10-29T09:37:44.5612750Z ##[group]Disabling automatic garbage collection
+2026-10-29T09:37:44.5613515Z [command]/usr/bin/git config --local gc.auto 0
+2026-10-29T09:37:44.5680844Z ##[endgroup]
+2026-10-29T09:37:44.5701198Z ##[group]Setting up auth
+2026-10-29T09:37:44.5715861Z Removing SSH command configuration
+2026-10-29T09:37:44.5722181Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T09:37:44.5724705Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T09:37:44.6286349Z Removing HTTP extra header
+2026-10-29T09:37:44.6293366Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T09:37:44.6342541Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T09:37:44.6609025Z Removing includeIf entries pointing to credentials config files
+2026-10-29T09:37:44.6614345Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T09:37:44.6671822Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T09:37:44.6945649Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-10-29T09:37:44.7004381Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path /home/runner/work/_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config
+2026-10-29T09:37:44.7053764Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config
+2026-10-29T09:37:44.7103443Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config
+2026-10-29T09:37:44.7152850Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config
+2026-10-29T09:37:44.7200661Z ##[endgroup]
+2026-10-29T09:37:44.7201592Z ##[group]Fetching the repository
+2026-10-29T09:37:44.7208392Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +c0e75af5e842348f98aac833c2de25e430d559bb:refs/remotes/origin/main
+2026-10-29T09:37:45.2134520Z From https://github.com/nabielss/sscriticalai-week4
+2026-10-29T09:37:45.2146540Z  * [new ref]         c0e75af5e842348f98aac833c2de25e430d559bb -> origin/main
+2026-10-29T09:37:45.2152306Z [command]/usr/bin/git branch --list --remote origin/main
+2026-10-29T09:37:45.2190982Z   origin/main
+2026-10-29T09:37:45.2202861Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2026-10-29T09:37:45.2241767Z c0e75af5e842348f98aac833c2de25e430d559bb
+2026-10-29T09:37:45.2261201Z ##[endgroup]
+2026-10-29T09:37:45.2262032Z ##[group]Determining the checkout info
+2026-10-29T09:37:45.2263001Z ##[endgroup]
+2026-10-29T09:37:45.2263638Z [command]/usr/bin/git sparse-checkout disable
+2026-10-29T09:37:45.2323920Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-10-29T09:37:45.2371607Z ##[group]Checking out the ref
+2026-10-29T09:37:45.2376704Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-10-29T09:37:45.2474482Z Switched to a new branch 'main'
+2026-10-29T09:37:45.2484917Z branch 'main' set up to track 'origin/main'.
+2026-10-29T09:37:45.2505763Z ##[endgroup]
+2026-10-29T09:37:45.2560741Z [command]/usr/bin/git log -1 --format=%H
+2026-10-29T09:37:45.2600950Z c0e75af5e842348f98aac833c2de25e430d559bb
+2026-10-29T09:37:45.2829847Z ##[group]Run set -euo pipefail
+2026-10-29T09:37:45.2830685Z [36;1mset -euo pipefail[0m
+2026-10-29T09:37:45.2830961Z [36;1mmkdir -p artifacts[0m
+2026-10-29T09:37:45.2831196Z [36;1m{[0m
+2026-10-29T09:37:45.2831489Z [36;1m  reviewed_by=$(printf '%s' "$REVIEWED_BY" | tr '\r\n' '  ')[0m
+2026-10-29T09:37:45.2831915Z [36;1m  if [[ -z "${reviewed_by//[[:space:]]/}" ]]; then[0m
+2026-10-29T09:37:45.2832270Z [36;1m    echo 'REVIEWED_BY is required' >&2[0m
+2026-10-29T09:37:45.2832563Z [36;1m    exit 1[0m
+2026-10-29T09:37:45.2832762Z [36;1m  fi[0m
+2026-10-29T09:37:45.2832967Z [36;1m  echo "COMMIT_SHA=$GITHUB_SHA"[0m
+2026-10-29T09:37:45.2833245Z [36;1m  echo "RUN_ID=$GITHUB_RUN_ID"[0m
+2026-10-29T09:37:45.2833543Z [36;1m  echo "RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT"[0m
+2026-10-29T09:37:45.2833995Z [36;1m  echo "RUN_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"[0m
+2026-10-29T09:37:45.2834432Z [36;1m  echo "RUNNER_OS=$RUNNER_OS"[0m
+2026-10-29T09:37:45.2834751Z [36;1m  echo "RUNNER_ARCH=$RUNNER_ARCH"[0m
+2026-10-29T09:37:45.2835050Z [36;1m  echo "RUNNER_NAME=$RUNNER_NAME"[0m
+2026-10-29T09:37:45.2835355Z [36;1m  echo "SCRIPT_AUTHOR=Codex (AI assistant)"[0m
+2026-10-29T09:37:45.2835695Z [36;1m  echo "TRIGGERED_BY=$GITHUB_ACTOR"[0m
+2026-10-29T09:37:45.2836070Z [36;1m  echo "RUN_BY=GitHub-hosted Actions, triggered by $GITHUB_ACTOR"[0m
+2026-10-29T09:37:45.2836535Z [36;1m  echo "EXECUTED_ON=$RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"[0m
+2026-10-29T09:37:45.2836930Z [36;1m  printf 'REVIEWED_BY=%s\n' "$reviewed_by"[0m
+2026-10-29T09:37:45.2837272Z [36;1m  echo 'MANUAL_CHECK=POST_RUN_REVIEW_PENDING'[0m
+2026-10-29T09:37:45.2837621Z [36;1m  echo "SELECTED_SCENARIO=$EXPERIMENT_SCENARIO"[0m
+2026-10-29T09:37:45.2837990Z [36;1m  echo "DATE_TIME_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"[0m
+2026-10-29T09:37:45.2838422Z [36;1m  echo 'DATA=3 deterministic synthetic invoices; no external data'[0m
+2026-10-29T09:37:45.2838852Z [36;1m  echo 'SEED=not applicable; fixed fixture rows'[0m
+2026-10-29T09:37:45.2839207Z [36;1m  echo 'COMMAND=bash scripts/experiment-01.sh'[0m
+2026-10-29T09:37:45.2839651Z [36;1m  echo "SCRIPT_SHA256=$(sha256sum scripts/experiment-01.sh | cut -d' ' -f1)"[0m
+2026-10-29T09:37:45.2840542Z [36;1m  echo "WORKFLOW_SHA256=$(sha256sum .github/workflows/week4-experiment-01.yml | cut -d' ' -f1)"[0m
+2026-10-29T09:37:45.2841058Z [36;1m  echo "CPU_COUNT=$(nproc)"[0m
+2026-10-29T09:37:45.2841522Z [36;1m  echo 'MEMORY:'[0m
+2026-10-29T09:37:45.2841805Z [36;1m  grep -E 'MemTotal|MemAvailable' /proc/meminfo[0m
+2026-10-29T09:37:45.2842123Z [36;1m  echo 'DISK:'[0m
+2026-10-29T09:37:45.2842349Z [36;1m  df -h "$GITHUB_WORKSPACE"[0m
+2026-10-29T09:37:45.2842734Z [36;1m  echo 'POSTGRES_IMAGE=postgres:16 (major pinned; patch reported below)'[0m
+2026-10-29T09:37:45.2843187Z [36;1m  psql -X -v ON_ERROR_STOP=1 -c 'SELECT version();'[0m
+2026-10-29T09:37:45.2843535Z [36;1m} 2>&1 | tee artifacts/runner-rig.log[0m
+2026-10-29T09:37:45.2867696Z shell: /usr/bin/bash -e {0}
+2026-10-29T09:37:45.2867961Z env:
+2026-10-29T09:37:45.2868147Z   PGHOST: 127.0.0.1
+2026-10-29T09:37:45.2868361Z   PGPORT: 5432
+2026-10-29T09:37:45.2868560Z   PGUSER: ci
+2026-10-29T09:37:45.2868766Z   PGPASSWORD: synthetic-only
+2026-10-29T09:37:45.2869009Z   PGDATABASE: week4
+2026-10-29T09:37:45.2869222Z   EXPERIMENT_SCENARIO: both
+2026-10-29T09:37:45.2869451Z   REVIEWED_BY: Nabiel
+2026-10-29T09:37:45.2869666Z ##[endgroup]
+2026-10-29T09:37:45.2979173Z COMMIT_SHA=c0e75af5e842348f98aac833c2de25e430d559bb
+2026-10-29T09:37:45.2980662Z RUN_ID=40851077057
+2026-10-29T09:37:45.2981456Z RUN_ATTEMPT=1
+2026-10-29T09:37:45.2982297Z RUN_URL=https://github.com/nabielss/sscriticalai-week4/actions/runs/40851077057
+2026-10-29T09:37:45.2983240Z RUNNER_OS=Linux
+2026-10-29T09:37:45.2983822Z RUNNER_ARCH=X64
+2026-10-29T09:37:45.2984372Z RUNNER_NAME=GitHub Actions 1000000014
+2026-10-29T09:37:45.2985045Z SCRIPT_AUTHOR=Codex (AI assistant)
+2026-10-29T09:37:45.2985686Z TRIGGERED_BY=nabielss
+2026-10-29T09:37:45.2986691Z RUN_BY=GitHub-hosted Actions, triggered by nabielss
+2026-10-29T09:37:45.2987667Z EXECUTED_ON=GitHub Actions 1000000014 (Linux/X64)
+2026-10-29T09:37:45.2988458Z REVIEWED_BY=Nabiel
+2026-10-29T09:37:45.2989084Z MANUAL_CHECK=POST_RUN_REVIEW_PENDING
+2026-10-29T09:37:45.2989771Z SELECTED_SCENARIO=both
+2026-10-29T09:37:45.2999506Z DATE_TIME_UTC=2026-10-29T09:37:45Z
+2026-10-29T09:37:45.3000635Z DATA=3 deterministic synthetic invoices; no external data
+2026-10-29T09:37:45.3001588Z SEED=not applicable; fixed fixture rows
+2026-10-29T09:37:45.3002388Z COMMAND=bash scripts/experiment-01.sh
+2026-10-29T09:37:45.3030639Z SCRIPT_SHA256=b1442f97202172949b18efaa7581e0c2e9ad55e9791c82082466698832bfccce
+2026-10-29T09:37:45.3057703Z WORKFLOW_SHA256=846a5cd8f1fe879a745b22a92d212457414dcb99441eaed43aaece02f554b5e5
+2026-10-29T09:37:45.3078687Z CPU_COUNT=2
+2026-10-29T09:37:45.3079476Z MEMORY:
+2026-10-29T09:37:45.3092981Z MemTotal:        8122984 kB
+2026-10-29T09:37:45.3093839Z MemAvailable:    7137744 kB
+2026-10-29T09:37:45.3095101Z DISK:
+2026-10-29T09:37:45.3116530Z Filesystem      Size  Used Avail Use% Mounted on
+2026-10-29T09:37:45.3117506Z /dev/root        72G   60G   13G  83% /
+2026-10-29T09:37:45.3118439Z POSTGRES_IMAGE=postgres:16 (major pinned; patch reported below)
+2026-10-29T09:37:45.3557499Z                                                        version                                                        
+2026-10-29T09:37:45.3559006Z ----------------------------------------------------------------------------------------------------------------------
+2026-10-29T09:37:45.3560758Z  PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T09:37:45.3561997Z (1 row)
+2026-10-29T09:37:45.3562371Z 
+2026-10-29T09:37:45.3629690Z ##[group]Run set +e
+2026-10-29T09:37:45.3630003Z [36;1mset +e[0m
+2026-10-29T09:37:45.3630744Z [36;1mbash scripts/experiment-01.sh 2>&1 | tee artifacts/experiment-01.log[0m
+2026-10-29T09:37:45.3631211Z [36;1mpipeline_status=("${PIPESTATUS[@]}")[0m
+2026-10-29T09:37:45.3631824Z [36;1mscript_status=${pipeline_status[0]}[0m
+2026-10-29T09:37:45.3632151Z [36;1mtee_status=${pipeline_status[1]}[0m
+2026-10-29T09:37:45.3632613Z [36;1mprintf 'SCRIPT_EXIT_STATUS=%s\n' "$script_status" | tee -a artifacts/experiment-01.log[0m
+2026-10-29T09:37:45.3633090Z [36;1mif [[ "$tee_status" -ne 0 ]]; then[0m
+2026-10-29T09:37:45.3633454Z [36;1m  echo 'Failed to persist the complete script output' >&2[0m
+2026-10-29T09:37:45.3634006Z [36;1m  exit 74[0m
+2026-10-29T09:37:45.3634208Z [36;1mfi[0m
+2026-10-29T09:37:45.3634408Z [36;1mexit "$script_status"[0m
+2026-10-29T09:37:45.3655061Z shell: /usr/bin/bash -e {0}
+2026-10-29T09:37:45.3655319Z env:
+2026-10-29T09:37:45.3655549Z   PGHOST: 127.0.0.1
+2026-10-29T09:37:45.3655764Z   PGPORT: 5432
+2026-10-29T09:37:45.3655961Z   PGUSER: ci
+2026-10-29T09:37:45.3656168Z   PGPASSWORD: synthetic-only
+2026-10-29T09:37:45.3656414Z   PGDATABASE: week4
+2026-10-29T09:37:45.3656635Z   EXPERIMENT_SCENARIO: both
+2026-10-29T09:37:45.3656869Z   REVIEWED_BY: Nabiel
+2026-10-29T09:37:45.3657080Z ##[endgroup]
+2026-10-29T09:37:45.3734181Z EXPERIMENT=01 OLD_APP_COMPATIBILITY_AND_DOWN_CURRENCY
+2026-10-29T09:37:45.3741209Z DATA=synthetic; no production or staging connection
+2026-10-29T09:37:45.3761416Z MIGRATION=verbatim SQL from ChallengeWeek4.md, wrapped in one transaction (runner behavior unknown)
+2026-10-29T09:37:45.3781090Z SELECTED_SCENARIO=both
+2026-10-29T09:37:45.4118001Z                                                        version                                                        
+2026-10-29T09:37:45.4132443Z ----------------------------------------------------------------------------------------------------------------------
+2026-10-29T09:37:45.4134257Z  PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T09:37:45.4135873Z (1 row)
+2026-10-29T09:37:45.4136360Z 
+2026-10-29T09:37:45.4136837Z SCENARIO_A=old_application_query
+2026-10-29T09:37:45.4496754Z NOTICE:  table "invoices" does not exist, skipping
+2026-10-29T09:37:45.4497724Z DROP TABLE
+2026-10-29T09:37:45.4544926Z CREATE TABLE
+2026-10-29T09:37:45.4574416Z INSERT 0 3
+2026-10-29T09:37:45.4981802Z ASSERTION_PASS old_query_before_rename value=<10.00>
+2026-10-29T09:37:45.5344909Z BEGIN
+2026-10-29T09:37:45.5346620Z ALTER TABLE
+2026-10-29T09:37:45.5353033Z UPDATE 3
+2026-10-29T09:37:45.5370646Z CREATE INDEX
+2026-10-29T09:37:45.5372286Z ALTER TABLE
+2026-10-29T09:37:45.5381622Z ALTER TABLE
+2026-10-29T09:37:45.5390960Z COMMIT
+2026-10-29T09:37:45.5941124Z ASSERTION_PASS new_query_after_up value=<10.00:EUR>
+2026-10-29T09:37:45.6601903Z ERROR:  column "amount" does not exist
+2026-10-29T09:37:45.6617391Z LINE 1: SELECT amount FROM invoices WHERE id = 1;
+2026-10-29T09:37:45.6618059Z                ^
+2026-10-29T09:37:45.6639446Z ASSERTION_PASS old_query_after_rename=missing_column_error
+2026-10-29T09:37:45.6660664Z SCENARIO_B=down_currency_information
+2026-10-29T09:37:45.7173416Z DROP TABLE
+2026-10-29T09:37:45.7202240Z CREATE TABLE
+2026-10-29T09:37:45.7230777Z INSERT 0 3
+2026-10-29T09:37:45.7605221Z BEGIN
+2026-10-29T09:37:45.7615148Z ALTER TABLE
+2026-10-29T09:37:45.7620825Z UPDATE 3
+2026-10-29T09:37:45.7634873Z CREATE INDEX
+2026-10-29T09:37:45.7637154Z ALTER TABLE
+2026-10-29T09:37:45.7660407Z ALTER TABLE
+2026-10-29T09:37:45.7677210Z COMMIT
+2026-10-29T09:37:45.8128098Z ASSERTION_PASS currency_index_count_after_up value=<1>
+2026-10-29T09:37:45.8554780Z  schemaname | tablename |       indexname       |                                         indexdef                                         
+2026-10-29T09:37:45.8556223Z ------------+-----------+-----------------------+------------------------------------------------------------------------------------------
+2026-10-29T09:37:45.8563369Z  public     | invoices  | invoices_currency_idx | CREATE INDEX invoices_currency_idx ON public.invoices USING btree (currency, created_at)
+2026-10-29T09:37:45.8564558Z (1 row)
+2026-10-29T09:37:45.8564990Z 
+2026-10-29T09:37:45.8956107Z ASSERTION_PASS currency_before_down_positive_control value=<1:EUR,2:IDR,3:USD>
+2026-10-29T09:37:45.9336232Z UPDATE 1
+2026-10-29T09:37:45.9764485Z ASSERTION_PASS explicit_currency_before_down value=<EUR>
+2026-10-29T09:37:46.0165573Z SNAPSHOT_BEFORE_DOWN currencies=1:EUR,2:IDR,3:USD; id3_currency_override=EUR; amount_sum=60.00
+2026-10-29T09:37:46.0530629Z BEGIN
+2026-10-29T09:37:46.0539646Z ALTER TABLE
+2026-10-29T09:37:46.0543257Z ALTER TABLE
+2026-10-29T09:37:46.0548812Z COMMIT
+2026-10-29T09:37:46.1798004Z ASSERTION_PASS currency_column_after_down value=<0>
+2026-10-29T09:37:46.1803192Z ASSERTION_PASS amount_column_after_down value=<1>
+2026-10-29T09:37:46.2533979Z ASSERTION_PASS amount_sum_after_down value=<60.00>
+2026-10-29T09:37:46.3131988Z ASSERTION_PASS amount_nonneg_constraint_persists_after_down value=<1>
+2026-10-29T09:37:46.3525826Z  schemaname | tablename | indexname | indexdef 
+2026-10-29T09:37:46.3526999Z ------------+-----------+-----------+----------
+2026-10-29T09:37:46.3527652Z (0 rows)
+2026-10-29T09:37:46.3527970Z 
+2026-10-29T09:37:46.3982472Z ASSERTION_PASS currency_index_count_after_down value=<0>
+2026-10-29T09:37:46.3983721Z OBSERVED currency_column_count_after_down=0
+2026-10-29T09:37:46.3984327Z OBSERVED amount_nonneg_constraint_count_after_down=1
+2026-10-29T09:37:46.3989926Z OBSERVED currency_index_count_before_down=1 after_down=0
+2026-10-29T09:37:46.3991007Z ASSERTION_BATCH_COMPLETE scenario=both
+2026-10-29T09:37:46.4003846Z SCRIPT_EXIT_STATUS=0
+2026-10-29T09:37:46.4103135Z ##[group]Run actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+2026-10-29T09:37:46.4103572Z with:
+2026-10-29T09:37:46.4103808Z   name: week4-experiment-01-40851077057-1
+2026-10-29T09:37:46.4104089Z   path: artifacts/
+2026-10-29T09:37:46.4104307Z   if-no-files-found: warn
+2026-10-29T09:37:46.4104538Z   retention-days: 14
+2026-10-29T09:37:46.4104755Z   compression-level: 6
+2026-10-29T09:37:46.4104966Z   overwrite: false
+2026-10-29T09:37:46.4105186Z   include-hidden-files: false
+2026-10-29T09:37:46.4105421Z   archive: true
+2026-10-29T09:37:46.4105618Z env:
+2026-10-29T09:37:46.4105802Z   PGHOST: 127.0.0.1
+2026-10-29T09:37:46.4106003Z   PGPORT: 5432
+2026-10-29T09:37:46.4106198Z   PGUSER: ci
+2026-10-29T09:37:46.4106404Z   PGPASSWORD: synthetic-only
+2026-10-29T09:37:46.4106642Z   PGDATABASE: week4
+2026-10-29T09:37:46.4106848Z   EXPERIMENT_SCENARIO: both
+2026-10-29T09:37:46.4107080Z   REVIEWED_BY: Nabiel
+2026-10-29T09:37:46.4107298Z ##[endgroup]
+2026-10-29T09:37:46.5810571Z With the provided path, there will be 3 files uploaded
+2026-10-29T09:37:46.5817698Z Artifact name is valid!
+2026-10-29T09:37:46.5818283Z Root directory input is valid!
+2026-10-29T09:37:46.9728513Z Uploading artifact: week4-experiment-01-40851077057-1.zip
+2026-10-29T09:37:46.9773670Z Beginning upload of artifact content to blob storage
+2026-10-29T09:37:47.2436807Z Uploaded bytes 2236
+2026-10-29T09:37:47.3060315Z Finished uploading artifact content to blob storage!
+2026-10-29T09:37:47.3064013Z SHA256 digest of uploaded artifact is 0dd1a05850cc03cb9d6a98d5076d9f145e81b6e64a1c99988009fcb8055d45e0
+2026-10-29T09:37:47.3065289Z Finalizing artifact upload
+2026-10-29T09:37:47.9146705Z Artifact week4-experiment-01-40851077057-1 successfully finalized. Artifact ID 12887127966
+2026-10-29T09:37:47.9149018Z Artifact week4-experiment-01-40851077057-1 has been successfully uploaded! Final size is 2236 bytes. Artifact ID is 12887127966
+2026-10-29T09:37:47.9164348Z Artifact download URL: https://github.com/nabielss/sscriticalai-week4/actions/runs/40851077057/artifacts/12887127966
+2026-10-29T09:37:47.9437151Z Post job cleanup.
+2026-10-29T09:37:48.0438362Z [command]/usr/bin/git version
+2026-10-29T09:37:48.0540510Z git version 2.56.0
+2026-10-29T09:37:48.0623580Z Temporarily overriding HOME='/home/runner/work/_temp/1cb040d3-0bbb-4748-af73-f421899bd1ea' before making global git config changes
+2026-10-29T09:37:48.0625386Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-29T09:37:48.0626792Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/sscriticalai-week4/sscriticalai-week4
+2026-10-29T09:37:48.0700233Z Removing SSH command configuration
+2026-10-29T09:37:48.0701379Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-10-29T09:37:48.0768665Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-10-29T09:37:48.1211409Z Removing HTTP extra header
+2026-10-29T09:37:48.1221487Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-29T09:37:48.1249908Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-10-29T09:37:48.1981859Z Removing includeIf entries pointing to credentials config files
+2026-10-29T09:37:48.1996891Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-29T09:37:48.2061853Z includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path
+2026-10-29T09:37:48.2076682Z includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path
+2026-10-29T09:37:48.2078062Z includeif.gitdir:/github/workspace/.git.path
+2026-10-29T09:37:48.2102184Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-29T09:37:48.2104760Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path
+2026-10-29T09:37:48.2151255Z /home/runner/work/_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config
+2026-10-29T09:37:48.2211817Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-a965359c\-e9a9\-4097\-be76\-e5fb439f5020\.config
+2026-10-29T09:37:48.2270400Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path
+2026-10-29T09:37:48.2307089Z /home/runner/work/_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config
+2026-10-29T09:37:48.2351856Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/sscriticalai-week4/sscriticalai-week4/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-a965359c\-e9a9\-4097\-be76\-e5fb439f5020\.config
+2026-10-29T09:37:48.2405741Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+2026-10-29T09:37:48.2471517Z /github/runner_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config
+2026-10-29T09:37:48.2476272Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-a965359c\-e9a9\-4097\-be76\-e5fb439f5020\.config
+2026-10-29T09:37:48.2526907Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+2026-10-29T09:37:48.2567038Z /github/runner_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config
+2026-10-29T09:37:48.2575910Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-a965359c\-e9a9\-4097\-be76\-e5fb439f5020\.config
+2026-10-29T09:37:48.2630832Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-10-29T09:37:48.2895774Z Removing credentials config '/home/runner/work/_temp/git-credentials-a965359c-e9a9-4097-be76-e5fb439f5020.config'
+2026-10-29T09:37:48.3037253Z Print service container logs: 756e62ce6e6941f0aba0d382ef163c72_postgres16_dcbec1
+2026-10-29T09:37:48.3043158Z ##[command]/usr/bin/docker logs --details fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:48.3213167Z  The files belonging to this database system will be owned by user "postgres".
+2026-10-29T09:37:48.3217637Z  initdb: warning: enabling "trust" authentication for local connections
+2026-10-29T09:37:48.3218401Z  This user must also own the server process.
+2026-10-29T09:37:48.3219687Z  initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+2026-10-29T09:37:48.3221318Z  2026-10-29 09:37:38.730 UTC [1] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T09:37:48.3222433Z  2026-10-29 09:37:38.730 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-10-29T09:37:48.3223004Z  2026-10-29 09:37:38.730 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-10-29T09:37:48.3223560Z  2026-10-29 09:37:38.731 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-29T09:37:48.3224150Z  2026-10-29 09:37:38.735 UTC [63] LOG:  database system was shut down at 2026-10-29 09:37:38 UTC
+2026-10-29T09:37:48.3224689Z  2026-10-29 09:37:38.744 UTC [1] LOG:  database system is ready to accept connections
+2026-10-29T09:37:48.3225221Z  2026-10-29 09:37:45.653 UTC [81] ERROR:  column "amount" does not exist at character 8
+2026-10-29T09:37:48.3225726Z  2026-10-29 09:37:45.653 UTC [81] STATEMENT:  SELECT amount FROM invoices WHERE id = 1;
+2026-10-29T09:37:48.3231106Z  
+2026-10-29T09:37:48.3231816Z  The database cluster will be initialized with locale "en_US.utf8".
+2026-10-29T09:37:48.3232855Z  The default database encoding has accordingly been set to "UTF8".
+2026-10-29T09:37:48.3233775Z  The default text search configuration will be set to "english".
+2026-10-29T09:37:48.3234550Z  
+2026-10-29T09:37:48.3235036Z  Data page checksums are disabled.
+2026-10-29T09:37:48.3235602Z  
+2026-10-29T09:37:48.3236262Z  fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2026-10-29T09:37:48.3237119Z  creating subdirectories ... ok
+2026-10-29T09:37:48.3237798Z  selecting dynamic shared memory implementation ... posix
+2026-10-29T09:37:48.3238646Z  selecting default max_connections ... 100
+2026-10-29T09:37:48.3239329Z  selecting default shared_buffers ... 128MB
+2026-10-29T09:37:48.3239977Z  selecting default time zone ... Etc/UTC
+2026-10-29T09:37:48.3240962Z  creating configuration files ... ok
+2026-10-29T09:37:48.3241569Z  running bootstrap script ... ok
+2026-10-29T09:37:48.3242201Z  performing post-bootstrap initialization ... ok
+2026-10-29T09:37:48.3242888Z  syncing data to disk ... ok
+2026-10-29T09:37:48.3243427Z  
+2026-10-29T09:37:48.3243853Z  
+2026-10-29T09:37:48.3244385Z  Success. You can now start the database server using:
+2026-10-29T09:37:48.3245043Z  
+2026-10-29T09:37:48.3245575Z      pg_ctl -D /var/lib/postgresql/data -l logfile start
+2026-10-29T09:37:48.3246243Z  
+2026-10-29T09:37:48.3247458Z  waiting for server to start....2026-10-29 09:37:38.413 UTC [47] LOG:  starting PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+2026-10-29T09:37:48.3250278Z  2026-10-29 09:37:38.413 UTC [47] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-29T09:37:48.3251921Z  2026-10-29 09:37:38.416 UTC [50] LOG:  database system was shut down at 2026-10-29 09:37:38 UTC
+2026-10-29T09:37:48.3252654Z  2026-10-29 09:37:38.420 UTC [47] LOG:  database system is ready to accept connections
+2026-10-29T09:37:48.3253217Z   done
+2026-10-29T09:37:48.3253553Z  server started
+2026-10-29T09:37:48.3253890Z  CREATE DATABASE
+2026-10-29T09:37:48.3254223Z  
+2026-10-29T09:37:48.3254527Z  
+2026-10-29T09:37:48.3254997Z  /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+2026-10-29T09:37:48.3255804Z  
+2026-10-29T09:37:48.3256286Z  2026-10-29 09:37:38.605 UTC [47] LOG:  received fast shutdown request
+2026-10-29T09:37:48.3257017Z  waiting for server to shut down....2026-10-29 09:37:38.606 UTC [47] LOG:  aborting any active transactions
+2026-10-29T09:37:48.3257896Z  2026-10-29 09:37:38.609 UTC [47] LOG:  background worker "logical replication launcher" (PID 53) exited with exit code 1
+2026-10-29T09:37:48.3258608Z  2026-10-29 09:37:38.609 UTC [48] LOG:  shutting down
+2026-10-29T09:37:48.3259153Z  2026-10-29 09:37:38.610 UTC [48] LOG:  checkpoint starting: shutdown immediate
+2026-10-29T09:37:48.3260952Z  2026-10-29 09:37:38.626 UTC [48] LOG:  checkpoint complete: wrote 926 buffers (5.7%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.014 s, sync=0.002 s, total=0.017 s; sync files=301, longest=0.001 s, average=0.001 s; distance=4273 kB, estimate=4273 kB; lsn=0/191F0E0, redo lsn=0/191F0E0
+2026-10-29T09:37:48.3263356Z  2026-10-29 09:37:38.634 UTC [47] LOG:  database system is shut down
+2026-10-29T09:37:48.3263965Z   done
+2026-10-29T09:37:48.3264291Z  server stopped
+2026-10-29T09:37:48.3264627Z  
+2026-10-29T09:37:48.3265039Z  PostgreSQL init process complete; ready for start up.
+2026-10-29T09:37:48.3265582Z  
+2026-10-29T09:37:48.3272754Z Stop and remove container: 756e62ce6e6941f0aba0d382ef163c72_postgres16_dcbec1
+2026-10-29T09:37:48.3277542Z ##[command]/usr/bin/docker rm --force fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:48.4668442Z fe82f0e150da3e3765b7cfba543dc30c002ec38f09b8dce7375792233fb483b4
+2026-10-29T09:37:48.4768943Z Remove container network: github_network_c0775c16dfac4f03a2da86e0c6ee81d3
+2026-10-29T09:37:48.4776029Z ##[command]/usr/bin/docker network rm github_network_c0775c16dfac4f03a2da86e0c6ee81d3
+2026-10-29T09:37:48.5558177Z github_network_c0775c16dfac4f03a2da86e0c6ee81d3
+2026-10-29T09:37:48.5638319Z Cleaning up orphan processes
+
+Hasil baca artifact:
+## Run 03 (40851077057): hasil dan provenance
+
+Hasilnya sama dengan run sebelumnya. Yang berubah adalah kualitas buktinya: untuk pertama kalinya ada bukti yang terikat ke commit, hash file, dan arsip bersih.
+
+### 1. Provenance: lolos semua yang bisa saya cek
+
+| Pemeriksaan | Hasil |
+|---|---|
+| `SCRIPT_SHA256` di rig log = hash file yang saya review dan jalankan di sandbox | **Cocok** (`b1442f97…bfccce`) |
+| `WORKFLOW_SHA256` = hash file yang saya review | **Cocok** (`846a5cd8…b5e5`) |
+| Commit | `c0e75af5…` di rig log dan di log fetch checkout |
+| Action yang diunduh | Persis SHA yang dipin (`3d3c42e5…`, `cf430e03…`) |
+| Isi artifact | 3 file, tidak ada sisa run lama |
+| Digest zip yang Anda unggah = digest di log upload | **Cocok** (`0dd1a058…`) |
+| Image Postgres | Digest `1beaa308…` sama dengan Run 02 |
+
+Karena hash cocok, file yang dijalankan di CI identik dengan file yang saya baca, dengan asumsi file yang Anda unggah ke saya adalah yang Anda review secara lokal. Itu satu-satunya langkah yang bergantung pada Anda.
+
+Batas pada cek ini: kecocokan digest zip hanya membuktikan file tidak berubah antara unduhan dan unggahan. Digest dan zip-nya sama-sama datang dari Anda, jadi ini bukan atestasi independen dari GitHub. Repo privat, jadi saya tidak bisa membuka URL run.
+
+### 2. Hasil eksperimen
+
+Dua temuan lama terulang, kali ini dengan kontrol yang kuat:
+
+- **Index ikut hilang bersama kolom.** Setelah `up()`, query ke `pg_indexes` memberi 1 baris dengan `indexdef` mentah (`btree (currency, created_at)`). Setelah `down()` hasilnya `(0 rows)`. Positive control yang kemarin kurang sekarang ada.
+- **Query lama gagal setelah rename.** Pesan error persis sama dengan Run 01. Log server Postgres (bagian "service container logs" di log Anda, bukan di artifact) juga mencatat `ERROR: column "amount" does not exist` dengan statement `SELECT amount ...`. Itu korborasi dari sisi server, bukan hanya dari klien psql.
+- **`down()` tetap menghapus `currency` dan meninggalkan `amount_nonneg`**, dengan `amount_sum` utuh (60.00).
+
+### 3. Tabel evidence (untuk format jawaban poin 4)
+
+Semua baris RAN dijalankan oleh GitHub Actions atas pemicu `nabielss`, pada 3 baris sintetis, PG 16.15.
+
+| Klaim | Status | Raw output |
+|---|---|---|
+| Query lama gagal setelah `RENAME` | **RAN** (Run 01, 03) | `column "amount" does not exist` |
+| `down()` menghapus data `currency` | **RAN** (01, 02, 03) | `currency_column_after_down=0` |
+| `down()` meninggalkan `amount_nonneg` | **RAN** (01, 02, 03) | `constraint_count_after_down=1` |
+| `down()` menghapus index bersama kolom | **RAN** dengan control (03) | `before_down=1 after_down=0` |
+| Lock dan blocking INSERT di skala besar | **NOT RUN** | tidak ada |
+| Durasi backfill, WAL, replica lag | **NOT RUN** | tidak ada |
+| `INSERT` pod lama gagal setelah rename | **NOT RUN** (hanya `SELECT` diuji) | tidak ada |
+| Pemetaan `ELSE 'USD'` | **NOT RUN** | tidak ada |
+| Klaim AI "1,8 s di staging, tanpa error" | **Tidak terverifikasi**, tidak ada output mentah | tidak ada |
+| Versi PG production dan perilaku transaksi runner | **Tidak diketahui** | tidak ada |
+
+### 4. Catatan yang masih terbuka
+
+- **`artifacts/` bersih karena kebetulan repo-nya bersih, bukan karena ada pengaman.** Hash workflow sama dengan yang saya review, yaitu hanya `mkdir -p artifacts` tanpa `rm -rf`. Pemisahan arsip berhasil di commit ini, tapi kalau ada file ter-track yang masuk lagi, pencampuran bisa terulang.
+- **Review pasca-run masih tertulis `POST_RUN_REVIEW_PENDING`, dan `REVIEWED_BY=Nabiel` adalah klaim sendiri.** Jangan edit log untuk mengubahnya. Catat hasil review Anda di berkas bukti terpisah, dengan tanggal dan apa yang Anda periksa.
+- **Penambahan tes `INSERT` lama belum masuk.** Hash script sama dengan yang saya review, jadi saran itu belum diterapkan.
+
+### 5. Kesimpulan
+
+Verdict TOLAK tidak berubah, dan alasannya tetap dua yang terbukti (rename merusak pod lama, `down()` tidak mengembalikan state) ditambah satu yang masih penalaran (lock di 120M baris). Run 03 menutup pertanyaan index dan provenance. Satu hal yang bisa Anda tutup tanpa menyentuh production: cek konfigurasi migration runner di repo aplikasi untuk memastikan apakah `up()` dibungkus satu transaksi. Jawabannya menentukan seberapa buruk lock di Eksperimen 02. Kalau mau, saya susun Eksperimen 02 (dua sesi, `lock_timeout`, 1M dan 5M baris) dengan format log dan bukti yang sama.

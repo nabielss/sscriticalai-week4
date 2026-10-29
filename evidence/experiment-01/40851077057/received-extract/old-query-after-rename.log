@@ -1,0 +1,3 @@
+ERROR:  column "amount" does not exist
+LINE 1: SELECT amount FROM invoices WHERE id = 1;
+               ^
