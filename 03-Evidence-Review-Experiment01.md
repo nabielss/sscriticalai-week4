@@ -196,6 +196,8 @@ PostgreSQL 16 documentation: an `UPDATE` under Read Committed finds target rows 
 
 **Provenance:** Nabiel reviewed script SHA-256 `15eb28b66ed6c86e0b85e23d54f5dc8b9fb2a027c961ecfd0c28e62ca88a533e` and workflow SHA-256 `d510486b51e289bcad668aa6ffd26b6af375c9373a62b2473a1db51f3d564995`. He did not run the code or edit files and recommended **NO-GO** because observer matching likely failed on the multiline SQL query. His falsifiable pre-run predictions and review summary were provided in the conversation; the full code review is not independently reproduced as a raw file here.
 
+**Nabiel's pre-run prediction, recorded before the revised run:** if the observer defect is fixed and the experiment is valid, `UPDATE` should report `100001` rows and take at least 3000 ms; id `200001` should end as EUR; id `200002` should remain USD; mismatch count should be 1; total rows should be 100002. He would consider the currency hypothesis falsified if id `200002` is EUR or the UPDATE reports 100002 rows. The revised harness's five-second synthetic pause uses a stricter `>=5000 ms` instrumentation check, but the outcome classification still reports measured values instead of failing simply because the currency hypothesis is refuted.
+
 **Finding dispositions in the new, still-unrun revision:**
 
 - **T-1:** observer now filters by the unique migration `application_name` and `wait_event='PgSleep'`; it does not assume a one-line query string. The query text is still emitted for inspection.
