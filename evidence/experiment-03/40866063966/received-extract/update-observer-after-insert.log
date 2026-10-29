@@ -1,0 +1,6 @@
+        clock_timestamp        | pid | state  | wait_event_type | wait_event |                                         query                                         
+-------------------------------+-----+--------+-----------------+------------+---------------------------------------------------------------------------------------
+ 2026-10-29 11:32:00.420987+00 |  86 | active | Timeout         | PgSleep    | UPDATE invoices                                                                      +
+                               |     |        |                 |            | SET currency = CASE country WHEN 'DE' THEN 'EUR' WHEN 'ID' THEN 'IDR' ELSE 'USD' END;
+(1 row)
+

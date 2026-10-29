@@ -139,13 +139,13 @@ Monthly Actions allowance/spend policy remains `UNKNOWN`; this workflow's first 
 
 No candidate fix has been implemented or tested. Preserve the `down()` findings; do not run rollback as a production recovery recommendation.
 
-## Experiment 02 implementation — calibration only, not yet run
+## Experiment 02 implementation — plan recorded before its run
 
-- Run 04 extends `compatibility` with an old-schema INSERT positive control before migration and an expected missing-column error after rename. It is in `scripts/experiment-01.sh`; it remains `NOT RUN` until Nabiel reviews and triggers the existing workflow with `both`.
+- At the time this plan was written, Run 04 extended `compatibility` with an old-schema INSERT positive control before migration and an expected missing-column error after rename. It is in `scripts/experiment-01.sh`; the later user-triggered Run 04 is recorded below.
 - New `week4-experiment-02.yml` and `scripts/experiment-02-lock.sh` set up one 100,000-row deterministic synthetic fixture. The job tests the original SQL in (A) one transaction and (B) per-statement commits, clearly labeled simulations because the real runner is unavailable.
 - A deliberately held `ACCESS EXCLUSIVE` lock is the observer/writer positive control. Each migration mode then runs with one bounded legacy writer (25 attempts, 250 ms `lock_timeout`, 100 ms sleep between attempts) and a `pg_stat_activity`/`pg_locks` sampler. These settings bound the probe; they are not business SLOs and do not represent 800 inserts/second.
 - The run records per-statement timings, writer outcomes, database size, WAL LSN delta, CPU/memory/disk snapshots, runner/image/database versions, hashes, and raw logs. Artifacts use a run-specific directory and `if: always()` upload. Scale-up, replica lag, and recovery are deliberately excluded from this calibration run.
-- Acceptance is limited to instrumentation positive control, complete accounting of writer attempts, and successful/failed migration state with raw evidence. An unobserved lock at 100k is not evidence of no lock at production scale. Nabiel must inspect the exact revision and trigger CI; no workflow has been dispatched for this draft.
+- Acceptance was limited to instrumentation positive control, complete accounting of writer attempts, and successful/failed migration state with raw evidence. An unobserved lock at 100k is not evidence of no lock at production scale. The later user-triggered run 40861765376 is recorded below.
 
 PostgreSQL 16 documentation supports the lock and measurement approach: lock-wait sessions can be joined through `pg_locks` and `pg_stat_activity`; `pg_wal_lsn_diff` reports LSN byte difference. A constant column default avoids a full-table rewrite on PostgreSQL 11+, while ordinary `CREATE INDEX` blocks writes during the build; `CREATE INDEX CONCURRENTLY` has separate transaction restrictions. Sources: [monitoring stats](https://www.postgresql.org/docs/16/monitoring-stats.html), [pg_locks](https://www.postgresql.org/docs/16/view-pg-locks.html), [WAL functions](https://www.postgresql.org/docs/16/functions-admin.html), [adding a column](https://www.postgresql.org/docs/16/ddl-alter.html), [CREATE INDEX](https://www.postgresql.org/docs/16/sql-createindex.html).
 
@@ -188,15 +188,15 @@ The original uploaded ZIPs and extracted raw files are retained under `evidence/
 
 PostgreSQL 16 documentation: an `UPDATE` under Read Committed finds target rows committed at the command start; subsequent commands take fresh snapshots. This supports the snapshot-based hypothesis but does not replace querying the actual synthetic rows. Source: [transaction isolation](https://www.postgresql.org/docs/16/transaction-iso.html).
 
-### Limits and next gate
+### Experiment 02 limits at the time of its first review
 
-**NOT RUN:** 800 inserts/s, p99/attempt latency, multiple repetitions/order randomization, production schema/index widths, 120M-row scale, replica lag, actual production runner transaction behavior, retry/resume, partial failure, and direct currency verification of IDs 200002–200005. The hosted Actions allowance is also `UNKNOWN`. The observed runner snapshot (2 CPUs, roughly 7.75 GiB total memory, 13 GB free disk) does not establish capacity for the production-sized dataset.
+**NOT RUN as of Experiment 02:** 800 inserts/s, p99/attempt latency, multiple repetitions/order randomization, production schema/index widths, 120M-row scale, replica lag, actual production runner transaction behavior, retry/resume, partial failure, and direct currency verification of IDs 200002–200005. The hosted Actions allowance is also `UNKNOWN`. The observed runner snapshot (2 CPUs, roughly 7.75 GiB total memory, 13 GB free disk) does not establish capacity for the production-sized dataset. Experiment 03 later directly tests one controlled currency race; its evidence is in the section below.
 
-### Nabiel's source review of draft commit `5c1a9a6`
+### Review material submitted for draft commit `5c1a9a6` — attribution correction
 
-**Provenance:** Nabiel reviewed script SHA-256 `15eb28b66ed6c86e0b85e23d54f5dc8b9fb2a027c961ecfd0c28e62ca88a533e` and workflow SHA-256 `d510486b51e289bcad668aa6ffd26b6af375c9373a62b2473a1db51f3d564995`. He did not run the code or edit files and recommended **NO-GO** because observer matching likely failed on the multiline SQL query. His falsifiable pre-run predictions and review summary were provided in the conversation; the full code review is not independently reproduced as a raw file here.
+**Provenance correction:** an earlier version of this report incorrectly attributed the code review and pre-run predictions to Nabiel personally. The later supplied note says that material came from an AI review. Correct status: AI-generated/AI-assisted review text was transmitted by Nabiel; authorship and any personal edits are unconfirmed. The review identifies script SHA-256 `15eb28b66ed6c86e0b85e23d54f5dc8b9fb2a027c961ecfd0c28e62ca88a533e` and workflow SHA-256 `d510486b51e289bcad668aa6ffd26b6af375c9373a62b2473a1db51f3d564995`, did not report an execution or file edit, and recommended **NO-GO** because observer matching likely failed on the multiline query. `REVIEWED_BY=Nabiel` in the later Actions run is a workflow input, not proof that a particular review text was personally authored. Do not count that AI review or its predictions as Nabiel's independent contribution.
 
-**Nabiel's pre-run prediction, recorded before the revised run:** if the observer defect is fixed and the experiment is valid, `UPDATE` should report `100001` rows and take at least 3000 ms; id `200001` should end as EUR; id `200002` should remain USD; mismatch count should be 1; total rows should be 100002. He would consider the currency hypothesis falsified if id `200002` is EUR or the UPDATE reports 100002 rows. The revised harness's five-second synthetic pause uses a stricter `>=5000 ms` instrumentation check, but the outcome classification still reports measured values instead of failing simply because the currency hypothesis is refuted.
+**Pre-run prediction carried by that AI review text (not credited to Nabiel):** if the observer defect is fixed and the experiment is valid, `UPDATE` should report `100001` rows and take at least 3000 ms; id `200001` should end as EUR; id `200002` should remain USD; mismatch count should be 1; total rows should be 100002. The review text states the currency hypothesis is falsified if id `200002` is EUR or UPDATE reports 100002 rows. The revised harness uses a five-second synthetic pause and a `>=5000 ms` instrumentation check. It records actual values before classifying the hypothesis.
 
 **Finding dispositions in the new, still-unrun revision:**
 
@@ -209,3 +209,34 @@ PostgreSQL 16 documentation: an `UPDATE` under Read Committed finds target rows 
 This revision remains **NOT RUN**. Bash syntax, YAML parsing, and the local safety guard are checked; no database was started locally. `actionlint` is unavailable. Nabiel must review the revised exact commit before dispatching the workflow. Its positive control and neutral hypothesis classification keep a falsifying result from being mislabeled as a failed harness. The synthetic pause remains instrumentation, not a performance measurement.
 
 Do not increase scale until CI footprint, account cost/quota, timeout, and disk safety reserve are known. A separate load/latency experiment requires a declared target and measures p50/p95/p99, successful/failed attempts, and lock waits; Experiment 02's 25-attempt sequential probe cannot answer that question.
+
+## Experiment 03 — controlled insert during backfill snapshot, 2026-10-29
+
+**Provenance:** [Actions run 40866063966](https://github.com/nabielss/sscriticalai-week4/actions/runs/40866063966), attempt 1, commit `65a109ccf19138b6b05f496aed45ee1c7e071272`. Script SHA-256 `053f8bb3e849fff40a34561f8d704be4b87d8c392280192debf712b72261cbc9`; workflow SHA-256 `7604e46fab184377379bcde3edd2240723b05f6c1d62b2c900e171636e2b3572`. I recomputed both from `git show` at that commit. The supplied ZIP is preserved byte-for-byte at `evidence/experiment-03/40866063966/original-artifact.zip`; SHA-256 `FE5C932555F13C0D8068E151BF933B3B1B77D7AD6679E297CB13AC350DFA044C` matches the Actions upload digest. Its 14 files match the Actions upload count. Extracted files are in the sibling `received-extract/` directory. The accompanying text is preserved at `evidence/Run03-40866063966-pasted-log-and-interpretation.txt`; it includes the pasted Actions log and interpretation. Its prose authorship/AI assistance is not confirmed, so it is recorded as user-supplied, not as an independently authored Nabiel interpretation.
+
+| Field | Value |
+|---|---|
+| SCRIPT_AUTHOR / TRIGGERED_BY / EXECUTED_ON | Codex / `nabielss` / GitHub-hosted Linux X64 (`1000000017`) |
+| REVIEWED_BY / MANUAL_CHECK | Raw rig says `Nabiel` / `POST_RUN_REVIEW_PENDING`. A later supplied analysis reports manual artifact inspection, but its authorship is unconfirmed. |
+| Data / database | 100,000 deterministic synthetic rows; PostgreSQL client/server 16.15; `read committed`; synthetic `DE/ID/US` distribution |
+| Rig snapshot | 2 CPUs; MemTotal 8,122,984 kB; MemAvailable 7,165,400 kB; `/dev/root` 72 GB, 13 GB free. Actions account quota `UNKNOWN`. |
+| Scope | Per-statement autocommit: `ADD COLUMN` committed before `UPDATE`; no rename; one pre-update DE control and one concurrent old-schema DE insert. A synthetic statement trigger pauses the update for 5 seconds; this is synchronization, not a performance model. |
+| Exit | `SCRIPT_EXIT_STATUS=0`; 14 artifact files uploaded. This means harness checks completed, not that the migration is approved. |
+
+**OBSERVED chronology:** observer output shows PostgreSQL backend PID 86 in `state=active`, `wait_event_type=Timeout`, `wait_event=PgSleep` at `11:32:00.313071Z`. The writer starts at `11:32:00.321217Z`; its psql call returns after `INSERT 0 1` at `11:32:00.372540Z`. A second observer query at `11:32:00.420987Z` still sees the same PID 86 paused in the same UPDATE. The UPDATE completes at `11:32:05.573431Z`. This brackets a successful committed insert between two observations of the same paused statement.
+
+**OBSERVED result:** PostgreSQL reports `UPDATE 100001`, `Time: 5350.541 ms`, final rows `100002`, and script-queried values `pre_update_currency=EUR`, `concurrent_currency=USD`, `mismatches=1`. The EUR control was inserted before the UPDATE and confirms the backfill mapping works on the fixture. The concurrent DE row retained the new column's USD default. The `OBSERVED_RESULT` line is assembled by the script from SQL query results captured in shell variables; individual final `SELECT` stdout files were not retained separately. The source hash and raw summary are available, but that is a limitation in the granularity of raw SQL-output preservation.
+
+**DERIVED:** the mismatch was caused in this controlled run by an insert committed after the UPDATE's statement snapshot was established and before its scan completed. The UPDATE count matches the 100,000 seed rows plus the pre-update control; the concurrent row was not included. This directly supports the mechanism hypothesized from Experiment 02. It does not show how many rows would be affected in production or how often a live insert falls in that window.
+
+### Interpretation audit and limits
+
+The supplied interpretation correctly narrows the result to one controlled 100k-row autocommit fixture on PostgreSQL 16.15, separates the Experiment 02 four-row currency inference from this direct run, and does not claim production frequency or scale. It also correctly distinguishes script-written labels such as `EXPERIMENT_FINDING=HYPOTHESIS_SUPPORTED` from independent evidence. Its authorship is not established, so the interpretation is retained as supplied analysis rather than credited as Nabiel-authored personal reasoning.
+
+The result also sharpens the personal baseline: the earlier wording expected old inserts **after the UPDATE finishes** to receive USD. This run demonstrates that the suspected window starts earlier: a row committed after the UPDATE snapshot begins can be missed while the UPDATE is still active. Preserve the original baseline; record this as a later correction, not a rewritten baseline.
+
+**NOT RUN:** 800 inserts/s, production-sized backfill/index/check, p99/latency, repeated runs, transaction-wrapped race, rename interaction, actual app driver/ORM behavior, other-country currency rules, replica lag, partial failure/retry/resume, or a mitigation. The five-second trigger makes the race deterministic but cannot estimate production exposure or migration duration. The hosted runner's 13 GB free disk is a startup snapshot, not evidence it can hold 120M rows/~180 GB. PostgreSQL docs for the snapshot rule: [Read Committed isolation](https://www.postgresql.org/docs/16/transaction-iso.html).
+
+### Next gate
+
+Do not repeat the same race run: it answered the narrow mechanism question. First, Nabiel must write a short independent interpretation in his own words (or confirm which parts of the supplied text he personally authored). Then complete the trainer's seven-part answer with observed/derived/unknown labels and a Plan B. Further CI work should be a separate, explicitly bounded gate for failure/resume or a measured lock/traffic question; 120M-row scale is unavailable on the observed standard runner and must stay `NOT RUN` unless a suitably sized, cost-approved runner is established.

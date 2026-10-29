@@ -1,0 +1,55 @@
+EXPERIMENT=03 CURRENCY_BACKFILL_INSERT_RACE
+PURPOSE=deterministically probe an old-schema insert after UPDATE snapshot begins
+SCOPE=per-statement autocommit; ADD COLUMN commits before UPDATE; no rename; not the transaction-wrapped mode
+DATA=100000 deterministic synthetic invoices; no external data
+SYNC=synthetic statement-level trigger sleeps 5s before UPDATE scans rows; not a performance measurement
+SAFETY_GUARD=environment check only; not a security boundary
+                                                       version                                                        
+----------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+(1 row)
+
+TRANSACTION_ISOLATION=read committed
+ASSERTION_PASS seed_rows value=<100000>
+UPDATE_PROCESS_STARTED time=2026-10-29T11:32:00.162565342Z pid=2615
+UPDATE_ACTIVE_AND_PAUSED time=2026-10-29T11:32:00.317876691Z
+        clock_timestamp        | pid | state  | wait_event_type | wait_event |                                         query                                         
+-------------------------------+-----+--------+-----------------+------------+---------------------------------------------------------------------------------------
+ 2026-10-29 11:32:00.313071+00 |  86 | active | Timeout         | PgSleep    | UPDATE invoices                                                                      +
+                               |     |        |                 |            | SET currency = CASE country WHEN 'DE' THEN 'EUR' WHEN 'ID' THEN 'IDR' ELSE 'USD' END;
+(1 row)
+
+CONCURRENT_INSERT_START time=2026-10-29T11:32:00.321217424Z id=200002 country=DE
+CONCURRENT_INSERT_COMMITTED time=2026-10-29T11:32:00.372540970Z id=200002 country=DE
+UPDATE_STILL_PAUSED_AFTER_INSERT time=2026-10-29T11:32:00.426115369Z
+        clock_timestamp        | pid | state  | wait_event_type | wait_event |                                         query                                         
+-------------------------------+-----+--------+-----------------+------------+---------------------------------------------------------------------------------------
+ 2026-10-29 11:32:00.420987+00 |  86 | active | Timeout         | PgSleep    | UPDATE invoices                                                                      +
+                               |     |        |                 |            | SET currency = CASE country WHEN 'DE' THEN 'EUR' WHEN 'ID' THEN 'IDR' ELSE 'USD' END;
+(1 row)
+
+UPDATE_PROCESS_FINISHED time=2026-10-29T11:32:05.573431432Z
+psql:/home/runner/work/sscriticalai-week4/sscriticalai-week4/artifacts/40866063966-1/seed.sql:1: NOTICE:  table "invoices" does not exist, skipping
+DROP TABLE
+CREATE TABLE
+INSERT 0 100000
+ALTER TABLE
+INSERT 0 1
+psql:/home/runner/work/sscriticalai-week4/sscriticalai-week4/artifacts/40866063966-1/pause-trigger.sql:1: NOTICE:  function pause_currency_backfill() does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+CREATE TRIGGER
+Timing is on.
+UPDATE 100001
+Time: 5350.541 ms (00:05.351)
+SET
+SET
+INSERT 0 1
+ASSERTION_PASS pre_update_insert_backfilled_positive_control value=<EUR>
+ASSERTION_PASS all_rows_accounted_for value=<100002>
+ASSERTION_PASS backfill_timing_record_count value=<1>
+ASSERTION_PASS pause_duration_ms value=<5350.541>
+OBSERVED_RESULT pre_update_currency=<EUR> concurrent_currency=<USD> mismatches=<1> updated_rows=<100001> rows=<100002>
+EXPERIMENT_FINDING=HYPOTHESIS_SUPPORTED
+HARNESS_ASSERTIONS=PASS; OBSERVATIONS_RECORDED=YES
+SCRIPT_EXIT_STATUS=0

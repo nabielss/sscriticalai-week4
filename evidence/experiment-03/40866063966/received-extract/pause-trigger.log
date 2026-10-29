@@ -1,0 +1,4 @@
+psql:/home/runner/work/sscriticalai-week4/sscriticalai-week4/artifacts/40866063966-1/pause-trigger.sql:1: NOTICE:  function pause_currency_backfill() does not exist, skipping
+DROP FUNCTION
+CREATE FUNCTION
+CREATE TRIGGER

@@ -1,0 +1,37 @@
+COMMIT_SHA=65a109ccf19138b6b05f496aed45ee1c7e071272
+RUN_ID=40866063966
+RUN_ATTEMPT=1
+RUN_URL=https://github.com/nabielss/sscriticalai-week4/actions/runs/40866063966
+DATE_TIME_UTC=2026-10-29T11:31:59Z
+WORKFLOW_TIMEOUT_MINUTES=10
+ACTIONS_ACCOUNT_QUOTA=UNKNOWN; billing access is not granted to this workflow
+SCRIPT_AUTHOR=Codex (AI assistant)
+TRIGGERED_BY=nabielss
+EXECUTED_ON=GitHub Actions 1000000017 (Linux/X64)
+REVIEWED_BY=Nabiel
+MANUAL_CHECK=POST_RUN_REVIEW_PENDING
+DATA=100000 deterministic synthetic invoices; no external data
+SEED=generate_series(1,100000); deterministic DE/ID/US pattern and amount
+COMMAND=bash scripts/experiment-03-currency-race.sh
+SCRIPT_SHA256=053f8bb3e849fff40a34561f8d704be4b87d8c392280192debf712b72261cbc9
+WORKFLOW_SHA256=7604e46fab184377379bcde3edd2240723b05f6c1d62b2c900e171636e2b3572
+CPU_COUNT=2
+MEMORY:
+MemTotal:        8122984 kB
+MemAvailable:    7165400 kB
+DISK:
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root        72G   60G   13G  83% /
+POSTGRES_IMAGE=postgres:16
+IMAGE_ID=sha256:74d436cb49d3398cf7b5d7b33635d43623d9e4da4b93c22db453f7d5d81181b1 REPO_DIGESTS=["postgres@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c"]
+psql (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg24.04+2)
+                                                       version                                                        
+----------------------------------------------------------------------------------------------------------------------
+ PostgreSQL 16.15 (Debian 16.15-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+(1 row)
+
+ transaction_isolation 
+-----------------------
+ read committed
+(1 row)
+
