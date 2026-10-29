@@ -1,6 +1,6 @@
 # Week 4 — diagnosis dan desain eksperimen pertama
 
-Status: diagnosis berbasis brief dan dokumentasi; eksperimen belum dijalankan (`NOT RUN`). Ini belum submission final.
+Status: dua CI correctness run sudah selesai (Run 01 `both`, Run 02 `rollback`); lock/traffic/scale tetap `NOT RUN`. Ini belum submission final.
 
 ## Provenance
 
@@ -10,7 +10,8 @@ Status: diagnosis berbasis brief dan dokumentasi; eksperimen belum dijalankan (`
 - `DOCUMENTED`: dokumentasi PostgreSQL resmi yang ditautkan pada bagian sumber.
 - `DERIVED`: hitungan/inferensi yang ditandai demikian.
 - `HYPOTHESIS`/`UNKNOWN`: klaim yang butuh uji atau konfirmasi owner.
-- `NOT RUN`: tidak ada rehearsal, seeding, traffic, atau recovery dijalankan pada tahap ini.
+- `OBSERVED`: dua rehearsal correctness pada tiga row sintetis; raw run cards dan limitations ada di [review evidence](03-Evidence-Review-Experiment01.md).
+- `NOT RUN`: seeding skala, traffic, lock contention, WAL/replica, partial failure, resume/recovery, atau pengukuran waktu/scale.
 
 ## Fakta challenge dan batasnya
 
@@ -71,7 +72,7 @@ P99 spike dan `wait_event_type='Lock'` adalah falsifiable metric yang baik untuk
 - CI job boleh selesai dengan harness sukses bila kedua defect terdeteksi tepat dan positive controls lulus. Ringkasan job harus menyatakan **migration ditolak**; green job hanya berarti harness berhasil mereproduksi defect, bukan approval migration. Marker yang salah/missing harus membuat job gagal.
 - Simpan raw stdout/stderr dan exit code, bahkan bila job gagal; upload artifact pada `if: always()`.
 - Run card wajib isi: `SCRIPT_AUTHOR`, `TRIGGERED_BY`, `EXECUTED_ON`, `REVIEWED_BY`, `MANUAL_CHECK`, commit SHA, URL/job/attempt, tanggal & zona waktu, Postgres image/version, CPU/RAM/disk hasil ukur, seed/row count, command, artifact path, exit status, limitations. `MANUAL_CHECK` tetap `POST_RUN_REVIEW_PENDING` sampai Nabiel menulis cek dan interpretasinya setelah membaca artifact.
-- **Status sekarang:** `NOT RUN`. Harness dan workflow draft sudah ditulis, tetapi belum berada pada remote GitHub yang terverifikasi dan belum dipicu; raw run URL/commit SHA/runner facts aktual belum dapat direkam.
+- **Status sekarang:** compatibility gate diuji pada Run 01 (`99b21a4`); rollback gate diuji pada Run 01 dan Run 02 (`a579dc1`). Run 02 menemukan index count 0 setelah `down()`, tetapi belum memiliki positive-control index count sebelum `down()`. Perubahan script sekarang menambah guard target, pre/post index inspection, file hashes, dan upload log yang tersinkron; seluruh perubahan itu masih `NOT RUN`.
 
 ## GitHub Actions kapasitas dan biaya: fakta dokumentasi vs pengukuran
 
@@ -82,4 +83,4 @@ P99 spike dan `wait_event_type='Lock'` adalah falsifiable metric yang baik untuk
 
 ## Gate berikutnya
 
-**Gate ini belum dilewati.** Draft ini mengasumsikan `bielsandbox/week4-challenge4/` akan menjadi root repository `nabielss/sscriticalai-week4`; path dan konfigurasi perlu ditinjau terhadap struktur repo yang benar. Nabiel perlu meninjau script/workflow, lalu memicu `workflow_dispatch`. Saya tidak menginisialisasi atau mempublikasikan folder ini karena sekarang tidak ada remote/repo clone dan akses GitHub belum terverifikasi. Setelah dua hasil mentah dibaca dan Nabiel menulis interpretasi, barulah diagnosis diperbarui dan eksperimen traffic/lock/recovery/scale dirancang dengan kapasitas runner yang terukur.
+**Gate correctness sudah dilewati dengan batasan di atas. Gate berikutnya:** Nabiel meninjau revisi script/workflow terkini dan memicu `workflow_dispatch` untuk memverifikasi positive control index dan provenance baru, atau langsung menyetujui desain Experiment 02 setelah review. Experiment 02 akan menguji lock dengan writer pada runner Actions, dimulai dari fixture kalibrasi dan scale-up hanya jika disk headroom terukur mencukupi. Setelah itu barulah kandidat diuji; belum ada fix yang dijalankan.

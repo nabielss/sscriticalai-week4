@@ -48,11 +48,17 @@ jobs:
       EXPERIMENT_SCENARIO: ${{ inputs.scenario }}
       REVIEWED_BY: ${{ inputs.reviewed_by }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Record runner and database rig
         run: |
+          set -euo pipefail
           mkdir -p artifacts
           {
+            reviewed_by=$(printf '%s' "$REVIEWED_BY" | tr '\r\n' '  ')
+            if [[ -z "${reviewed_by//[[:space:]]/}" ]]; then
+              echo 'REVIEWED_BY is required' >&2
+              exit 1
+            fi
             echo "COMMIT_SHA=$GITHUB_SHA"
             echo "RUN_ID=$GITHUB_RUN_ID"
             echo "RUN_ATTEMPT=$GITHUB_RUN_ATTEMPT"
@@ -64,13 +70,15 @@ jobs:
             echo "TRIGGERED_BY=$GITHUB_ACTOR"
             echo "RUN_BY=GitHub-hosted Actions, triggered by $GITHUB_ACTOR"
             echo "EXECUTED_ON=$RUNNER_NAME ($RUNNER_OS/$RUNNER_ARCH)"
-            echo "REVIEWED_BY=$REVIEWED_BY"
+            printf 'REVIEWED_BY=%s\n' "$reviewed_by"
             echo 'MANUAL_CHECK=POST_RUN_REVIEW_PENDING'
             echo "SELECTED_SCENARIO=$EXPERIMENT_SCENARIO"
             echo "DATE_TIME_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo 'DATA=3 deterministic synthetic invoices; no external data'
             echo 'SEED=not applicable; fixed fixture rows'
             echo 'COMMAND=bash scripts/experiment-01.sh'
+            echo "SCRIPT_SHA256=$(sha256sum scripts/experiment-01.sh | cut -d' ' -f1)"
+            echo "WORKFLOW_SHA256=$(sha256sum .github/workflows/week4-experiment-01.yml | cut -d' ' -f1)"
             echo "CPU_COUNT=$(nproc)"
             echo 'MEMORY:'
             grep -E 'MemTotal|MemAvailable' /proc/meminfo
@@ -80,10 +88,21 @@ jobs:
             psql -X -v ON_ERROR_STOP=1 -c 'SELECT version();'
           } 2>&1 | tee artifacts/runner-rig.log
       - name: Run selected synthetic experiment
-        run: bash scripts/experiment-01.sh
+        run: |
+          set +e
+          bash scripts/experiment-01.sh 2>&1 | tee artifacts/experiment-01.log
+          pipeline_status=("${PIPESTATUS[@]}")
+          script_status=${pipeline_status[0]}
+          tee_status=${pipeline_status[1]}
+          printf 'SCRIPT_EXIT_STATUS=%s\n' "$script_status" | tee -a artifacts/experiment-01.log
+          if [[ "$tee_status" -ne 0 ]]; then
+            echo 'Failed to persist the complete script output' >&2
+            exit 74
+          fi
+          exit "$script_status"
       - name: Upload raw logs even when a step fails
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: week4-experiment-01-${{ github.run_id }}-${{ github.run_attempt }}
           path: artifacts/

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [[ "${GITHUB_ACTIONS:-}" != 'true' || "${PGHOST:-}" != '127.0.0.1' || "${PGPORT:-}" != '5432' || "${PGDATABASE:-}" != 'week4' || "${PGUSER:-}" != 'ci' || "${PGPASSWORD:-}" != 'synthetic-only' ]]; then
+  echo 'REFUSING: experiment requires the isolated GitHub Actions Postgres service' >&2
+  exit 3
+fi
 mkdir -p artifacts
-exec > >(tee artifacts/experiment-01.log) 2>&1
-trap 'status=$?; echo "SCRIPT_EXIT_STATUS=$status"' EXIT
 
 psql_ci() { psql -X -v ON_ERROR_STOP=1 "$@"; }
 assert_eq() {
@@ -72,14 +74,16 @@ run_compatibility() {
     echo 'ASSERTION_FAILED old_query_after_rename failed for an unexpected reason'
     exit 1
   fi
-  echo 'EXPECTED_FINDING old_query_after_rename=FAIL column amount does not exist'
-  echo 'RELEASE_GATE rolling_compatibility=FAIL (harness reproduced the defect)'
+  echo 'ASSERTION_PASS old_query_after_rename=missing_column_error'
 }
 
 run_rollback() {
   echo 'SCENARIO_B=down_currency_information'
   reset_fixture
   run_up
+  currency_indexes_before=$(psql_ci -Atc "SELECT count(*) FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'invoices' AND indexname = 'invoices_currency_idx';")
+  assert_eq "$currency_indexes_before" '1' 'currency_index_count_after_up'
+  psql_ci -c "SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'invoices' AND indexname = 'invoices_currency_idx';"
   currencies=$(psql_ci -Atc "SELECT string_agg(id::text || ':' || currency, ',' ORDER BY id) FROM invoices;")
   assert_eq "$currencies" '1:EUR,2:IDR,3:USD' 'currency_before_down_positive_control'
 
@@ -105,13 +109,14 @@ SQL
   assert_eq "$amount_sum_after" "$amount_sum_before" 'amount_sum_after_down'
   check_constraints=$(psql_ci -Atc "SELECT count(*) FROM pg_constraint WHERE conrelid = 'invoices'::regclass AND conname = 'amount_nonneg';")
   assert_eq "$check_constraints" '1' 'amount_nonneg_constraint_persists_after_down'
+  psql_ci -c "SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'invoices' AND indexname = 'invoices_currency_idx';"
   currency_indexes=$(psql_ci -Atc "SELECT count(*) FROM pg_indexes WHERE schemaname = current_schema() AND tablename = 'invoices' AND indexname = 'invoices_currency_idx';")
-  assert_eq "$currency_indexes" '0' 'currency_index_removed_with_column'
-  echo 'EXPECTED_FINDING currency_after_down=ABSENT; explicit currency value is not preserved by down()'
-  echo 'EXPECTED_FINDING amount_nonneg_constraint_after_down=PRESENT; schema is not identical to pre-up state'
-  echo 'RELEASE_GATE down_preserves_currency=FAIL (harness reproduced the defect)'
+  assert_eq "$currency_indexes" '0' 'currency_index_count_after_down'
+  echo "OBSERVED currency_column_count_after_down=$currency_columns"
+  echo "OBSERVED amount_nonneg_constraint_count_after_down=$check_constraints"
+  echo "OBSERVED currency_index_count_before_down=$currency_indexes_before after_down=$currency_indexes"
 }
 
 if [[ "$scenario" == compatibility || "$scenario" == both ]]; then run_compatibility; fi
 if [[ "$scenario" == rollback || "$scenario" == both ]]; then run_rollback; fi
-echo 'EXPERIMENT_HARNESS=PASS; MIGRATION_DECISION=REJECT'
+echo "ASSERTION_BATCH_COMPLETE scenario=$scenario"
